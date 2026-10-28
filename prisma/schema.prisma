@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum Status {
+  ACTIVE
+  BANNED
+}
+
+enum ReportStatus {
+  NEW
+  RESOLVED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("USER")
+  status       String   @default("ACTIVE")
+  bannedUntil  DateTime?
+  createdAt    DateTime @default(now())
+}
