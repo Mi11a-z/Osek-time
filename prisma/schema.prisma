@@ -23,11 +23,53 @@ enum ReportStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String    @id @default(cuid())
+  username     String    @unique
   passwordHash String
-  role         String   @default("USER")
-  status       String   @default("ACTIVE")
+  role         Role      @default(USER)
+  status       Status    @default(ACTIVE)
   bannedUntil  DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
+
+  posts   Post[]
+  likes   Like[]
+  reports Report[]
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  authorId    String
+  content     String
+  isAnonymous Boolean  @default(false)
+  isHidden    Boolean  @default(false)
+  hiddenById  String?
+  createdAt   DateTime @default(now())
+
+  author  User     @relation(fields: [authorId], references: [id])
+  likes   Like[]
+  reports Report[]
+}
+
+model Like {
+  userId String
+  postId String
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  postId     String
+  reporterId String
+  reason     String
+  status     ReportStatus @default(NEW)
+  createdAt  DateTime     @default(now())
+
+  post     Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter User @relation(fields: [reporterId], references: [id])
+
+  @@unique([postId, reporterId])
 }
