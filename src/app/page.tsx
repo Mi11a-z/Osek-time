@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
-type IconName = "home" | "flame" | "bookmark" | "user" | "globe" | "search" | "pencil" | "lock" | "heart" | "more" | "mask";
+type IconName = "home" | "flame" | "bookmark" | "user" | "globe" | "search" | "pencil" | "lock" | "heart" | "more" | "mask" | "comment";
 
 function Icon({ name, className = "" }: { name: IconName; className?: string }) {
   const paths: Record<IconName, ReactNode> = {
@@ -20,6 +20,7 @@ function Icon({ name, className = "" }: { name: IconName; className?: string }) 
     heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />,
     more: <><circle cx="4" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="20" cy="12" r="1.5" /></>,
     mask: <path fillRule="evenodd" d="M3 4c3-1 6 1 9 1s6-2 9-1v7c0 5-4 9-9 11-5-2-9-6-9-11V4Zm3 6c1-1 4-1 5 1-1 3-5 2-5-1Zm7 1c1-2 4-2 5-1 0 3-4 4-5 1Z" />,
+    comment: <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />,
   };
 
   return (
@@ -46,40 +47,116 @@ function PostAuthor({ named = false, city, minutes }: { named?: boolean; city: s
   );
 }
 
-function PostActions({ likes: initialLikes, separated = false }: { likes: number; separated?: boolean }) {
+function PostActions({ 
+  likes: initialLikes, 
+  initialComments = [], 
+  separated = false 
+}: { 
+  likes: number; 
+  initialComments?: string[]; 
+  separated?: boolean; 
+}) {
   const [likes, setLikes] = useState(initialLikes);
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<string[]>(initialComments);
+  const [commentInput, setCommentInput] = useState("");
 
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikes(prev => isLiked ? prev - 1 : prev + 1);
   };
+  const handleDeleteComment = (indexToDelete: number) => {
+    setComments(comments.filter((_, idx) => idx !== indexToDelete));
+  };
+
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentInput.trim()) return;
+    setComments([...comments, commentInput.trim()]);
+    setCommentInput("");
+  };
 
   return (
-    <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
-      <button
-        type="button"
-        onClick={handleLike}
-        className={`like-button ${isLiked ? "is-liked" : ""}`}
-        aria-pressed={isLiked}
-        aria-label={`Нравится: ${likes}`}
-      >
-        <Icon name="heart" />
-        <span>{likes}</span>
-      </button>
-      <span className="action-divider" aria-hidden="true" />
-      <button
-        type="button"
-        onClick={() => setIsSaved(!isSaved)}
-        className={`icon-button save-button ${isSaved ? "is-saved" : ""}`}
-        aria-pressed={isSaved}
-        aria-label={isSaved ? "Убрать из сохранённого" : "Сохранить публикацию"}
-      >
-        <Icon name="bookmark" />
-      </button>
-      <button type="button" className="icon-button action-more" aria-label="Другие действия"><Icon name="more" /></button>
-    </footer>
+    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+      <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
+        <button
+          type="button"
+          onClick={handleLike}
+          className={`like-button ${isLiked ? "is-liked" : ""}`}
+          aria-pressed={isLiked}
+          style={{ color: isLiked ? "#ef4444" : "inherit" }}
+        >
+          <Icon name="heart" />
+          <span>{likes}</span>
+        </button>
+
+        <span className="action-divider" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={() => setShowComments(!showComments)}
+          className="like-button"
+          style={{ color: showComments ? "var(--coral)" : "inherit" }}
+        >
+          <Icon name="comment" />
+          <span>{comments.length}</span>
+        </button>
+
+        <span className="action-divider" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={() => setIsSaved(!isSaved)}
+          className={`icon-button save-button ${isSaved ? "is-saved" : ""}`}
+          style={{ color: isSaved ? "#eab308" : "inherit" }}
+        >
+          <Icon name="bookmark" />
+        </button>
+        <button type="button" className="icon-button action-more"><Icon name="more" /></button>
+      </footer>
+      
+      {showComments && (
+        <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "160px", overflowY: "auto" }}>
+            {comments.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "var(--muted)" }}>Пока нет комментариев. Напишите первый!</p>
+            ) : (
+              comments.map((item, idx) => (
+                <div key={idx} style={{ background: "rgba(0,0,0,0.03)", padding: "8px 12px", borderRadius: "10px", fontSize: "13px" }}>
+                  <span style={{ fontWeight: 700, marginRight: "8px" }}>Аноним:</span>
+                  <span>{item}</span>
+                  <button
+      type="button"
+      onClick={() => handleDeleteComment(idx)}
+      style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}
+    >
+      удалить
+    </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <form onSubmit={handleAddComment} style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+            <input
+              type="text"
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              placeholder="Написать комментарий…"
+              style={{ flex: 1, padding: "8px 12px", borderRadius: "12px", border: "1px solid var(--line)", background: "white", fontSize: "13px", outline: "none" }}
+            />
+            <button
+              type="submit"
+              style={{ background: "var(--coral)", color: "white", padding: "8px 16px", borderRadius: "12px", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}
+            >
+              Отправить
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -260,3 +337,8 @@ export default function Home() {
     </main>
   );
 }
+<PostActions 
+  likes={128} 
+  initialComments={["Да, там очереди по 30 минут!", "Попробуйте кофейню на Достык"]} 
+  separated 
+/>
