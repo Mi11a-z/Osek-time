@@ -231,3 +231,25 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .post-copy, .short-post .post-copy { font-size: 17px; }
   .city-photo { aspect-ratio: 2.2; }
 }
+/* Управляем положением кружка через CSS-классы и состояние */
+.anonymous-switch {
+  display: flex !important;
+  align-items: center !important;
+  background-color: #cbd5e1 !important; /* Серый цвет по умолчанию (выключено) */
+  transition: background-color 0.2s ease !important;
+}
+
+/* Когда переключатель включен (красный фон) */
+.anonymous-switch[aria-checked="true"] {
+  background-color: var(--coral) !important;
+  justify-content: flex-end !important;
+}
+
+/* Когда переключатель выключен (серый фон) */
+.anonymous-switch[aria-checked="false"] {
+  justify-content: flex-start !important;
+}
+
+.anonymous-switch > span {
+  transition: transform 0.2s ease !important;
+}

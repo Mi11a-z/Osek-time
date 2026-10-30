@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 
@@ -37,23 +40,73 @@ function PostAuthor({ named = false, city, minutes }: { named?: boolean; city: s
         <span className="author-name">{named ? "Айдана" : "Аноним"}</span>
         <span className="post-meta">{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
-      <button type="button" className="icon-button post-menu" aria-label="Действия с публикацией" aria-disabled="true"><Icon name="more" /></button>
+      <button type="button" className="icon-button post-menu" aria-label="Действия с публикацией"><Icon name="more" /></button>
     </header>
   );
 }
 
-function PostActions({ likes, separated = false }: { likes: number; separated?: boolean }) {
+function PostActions({ likes: initialLikes, separated = false }: { likes: number; separated?: boolean }) {
+  const [likes, setLikes] = useState(initialLikes);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    setLikes(prev => isLiked ? prev - 1 : prev + 1);
+  };
+
   return (
     <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
-      <button type="button" className="like-button" aria-label={`Нравится: ${likes}`} aria-disabled="true"><Icon name="heart" /><span>{likes}</span></button>
+      <button 
+        type="button" 
+        onClick={handleLike}
+        className={`like-button ${isLiked ? "is-liked" : ""}`} 
+        style={isLiked ? { color: "#ef4444" } : {}}
+        aria-label={`Нравится: ${likes}`}
+      >
+        <Icon name="heart" />
+        <span>{likes}</span>
+      </button>
       <span className="action-divider" aria-hidden="true" />
-      <button type="button" className="icon-button" aria-label="Сохранить публикацию" aria-disabled="true"><Icon name="bookmark" /></button>
-      <button type="button" className="icon-button action-more" aria-label="Другие действия" aria-disabled="true"><Icon name="more" /></button>
+      <button 
+        type="button" 
+        onClick={() => setIsSaved(!isSaved)}
+        className={`icon-button ${isSaved ? "text-yellow-500" : ""}`} 
+        style={isSaved ? { color: "#eab308" } : {}}
+        aria-label="Сохранить публикацию"
+      >
+        <Icon name="bookmark" />
+      </button>
+      <button type="button" className="icon-button action-more" aria-label="Другие действия"><Icon name="more" /></button>
     </footer>
   );
 }
 
 export default function Home() {
+  const [activeNav, setActiveNav] = useState("Лента");
+  const [activeCity, setActiveCity] = useState("Все города");
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [postText, setPostText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const navItems: { name: string; icon: IconName }[] = [
+    { name: "Лента", icon: "home" },
+    { name: "Популярное", icon: "flame" },
+    { name: "Сохранённое", icon: "bookmark" },
+    { name: "Профиль", icon: "user" },
+  ];
+
+  const cities = ["Все города", "Алматы", "Астана", "Шымкент"];
+
+  const handlePublish = () => {
+    if (!postText.trim()) {
+      alert("Напишите текст публикации!");
+      return;
+    }
+    alert(`Пост опубликован (${isAnonymous ? "Анонимно" : "От вашего имени"})!`);
+    setPostText("");
+  };
+
   return (
     <main className="page-shell">
       <header className="masthead">
@@ -62,35 +115,104 @@ export default function Home() {
           <p className="brand-caption">Обсуждают в Казахстане</p>
         </div>
         <nav className="main-navigation" aria-label="Основная навигация">
-          <button type="button" className="navigation-item is-active" aria-current="page" aria-disabled="true"><Icon name="home" /><span>Лента</span></button>
-          <button type="button" className="navigation-item" aria-disabled="true"><Icon name="flame" /><span>Популярное</span></button>
-          <button type="button" className="navigation-item" aria-disabled="true"><Icon name="bookmark" /><span>Сохранённое</span></button>
-          <button type="button" className="navigation-item" aria-disabled="true"><Icon name="user" /><span>Профиль</span></button>
+          {navItems.map((item) => (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => setActiveNav(item.name)}
+              className={`navigation-item ${activeNav === item.name ? "is-active" : ""}`}
+              aria-current={activeNav === item.name ? "page" : undefined}
+            >
+              <Icon name={item.icon} />
+              <span>{item.name}</span>
+            </button>
+          ))}
         </nav>
       </header>
 
       <section className="feed-toolbar" aria-label="Города и поиск">
         <div className="city-filters" role="group" aria-label="Выбор города">
-          <button type="button" className="city-chip is-selected" aria-pressed="true" aria-disabled="true"><Icon name="globe" />Все города</button>
-          <button type="button" className="city-chip" aria-pressed="false" aria-disabled="true">Алматы</button>
-          <button type="button" className="city-chip" aria-pressed="false" aria-disabled="true">Астана</button>
-          <button type="button" className="city-chip" aria-pressed="false" aria-disabled="true">Шымкент</button>
+          {cities.map((city) => (
+            <button
+              key={city}
+              type="button"
+              onClick={() => setActiveCity(city)}
+              className={`city-chip ${activeCity === city ? "is-selected" : ""}`}
+              aria-pressed={activeCity === city}
+            >
+              {city === "Все города" && <Icon name="globe" />}
+              {city}
+            </button>
+          ))}
         </div>
         <label className="search-field">
           <Icon name="search" />
-          <input type="search" placeholder="Поиск по постам, городам, темам…" aria-label="Поиск по постам, городам и темам" readOnly />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Поиск по постам, городам, темам…"
+            aria-label="Поиск по постам, городам и темам"
+          />
         </label>
       </section>
 
       <section className="composer" aria-label="Новая публикация">
         <label className="composer-field">
           <Icon name="pencil" />
-          <textarea rows={1} placeholder="Что обсуждают в твоём городе?" aria-label="Текст новой публикации" readOnly />
+          <textarea
+            rows={1}
+            value={postText}
+            onChange={(e) => setPostText(e.target.value)}
+            placeholder="Что обсуждают в твоём городе?"
+            aria-label="Текст новой публикации"
+          />
         </label>
         <div className="composer-controls">
-          <div className="anonymous-control"><Icon name="mask" /><span>Анонимно</span><span className="anonymous-switch" role="switch" aria-checked="true" aria-disabled="true" aria-label="Анонимная публикация включена"><span /></span></div>
-          <button type="button" className="publish-button" aria-disabled="true">Опубликовать</button>
-          <p className="privacy-note"><Icon name="lock" /><span>Автор скрыт от читателей, но виден модераторам.</span></p>
+          <div 
+  className="anonymous-control" 
+  onClick={() => setIsAnonymous(!isAnonymous)}
+  style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", userSelect: "none" }}
+>
+  <Icon name="mask" />
+  <span>Анонимно</span>
+  <div 
+    style={{
+      width: "54px",
+      height: "32px",
+      borderRadius: "20px",
+      backgroundColor: isAnonymous ? "var(--coral)" : "#cbd5e1",
+      padding: "4px",
+      transition: "background-color 0.2s ease",
+      boxSizing: "border-box",
+      display: "flex",
+      alignItems: "center"
+    }}
+  >
+    <span 
+      style={{
+        width: "24px",
+        height: "24px",
+        borderRadius: "50%",
+        backgroundColor: "#fffaf4",
+        boxShadow: "0 1px 3px rgba(16, 34, 63, 0.2)",
+        transform: isAnonymous ? "translateX(22px)" : "translateX(0px)",
+        transition: "transform 0.2s ease"
+      }} 
+    />
+  </div>
+</div>
+          <button 
+            type="button" 
+            onClick={handlePublish} 
+            className="publish-button"
+          >
+            Опубликовать
+          </button>
+          <p className="privacy-note">
+            <Icon name="lock" />
+            <span>Автор скрыт от читателей, но виден модераторам.</span>
+          </p>
         </div>
       </section>
 
@@ -113,7 +235,14 @@ export default function Home() {
             <PostAuthor named city="Алматы" minutes={28} />
             <span className="city-tag"># Алматы</span>
             <p className="post-copy">Вечерний Алматы — отдельный вид любви. Делитесь любимыми маршрутами для прогулок.</p>
-            <Image className="city-photo" src="/images/almaty-evening.png" alt="Вечерний Алматы на фоне заснеженных гор в розовом свете заката" width={2172} height={724} sizes="(max-width: 800px) calc(100vw - 64px), (max-width: 1200px) 42vw, 570px" preload />
+            <Image 
+              className="city-photo" 
+              src="/images/almaty-evening.png" 
+              alt="Вечерний Алматы на фоне заснеженных гор в розовом свете заката" 
+              width={2172} 
+              height={724} 
+              sizes="(max-width: 800px) calc(100vw - 64px), (max-width: 1200px) 42vw, 570px" 
+            />
             <PostActions likes={86} />
           </article>
           <article className="post-card short-post">
