@@ -1323,3 +1323,6 @@ textarea::placeholder {
     animation: none;
   }
 }
+
+.post-card.is-clickable { cursor: pointer; transition: box-shadow 0.2s ease; }
+.post-card.is-clickable:hover { box-shadow: 0 6px 20px rgba(16, 34, 63, 0.12); }

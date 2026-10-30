@@ -42,7 +42,7 @@ function PostAuthor({ named = false, city, minutes }: { named?: boolean; city: s
         <span className="author-name">{named ? "Айдана" : "Аноним"}</span>
         <span className="post-meta">{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
-      <button type="button" className="icon-button post-menu" aria-label="Действия с публикацией"><Icon name="more" /></button>
+      <button type="button" className="icon-button post-menu" aria-label="Действия с публикацией" onClick={(e) => e.stopPropagation()}><Icon name="more" /></button>
     </header>
   );
 }
@@ -79,7 +79,10 @@ function PostActions({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+    <div
+      style={{ display: "flex", flexDirection: "column", width: "100%" }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
         <button
           type="button"
@@ -176,6 +179,8 @@ export default function Home() {
   ];
 
   const cities = ["Все города", "Алматы", "Астана", "Шымкент"];
+
+  const openPost = (id: number) => router.push(`/post/${id}`);
 
   const handlePublish = () => {
     if (!postText.trim()) {
@@ -298,7 +303,7 @@ export default function Home() {
       </section>
 
       <section className="feed-grid" aria-label="Лента публикаций">
-        <article className="post-card featured-post">
+        <article className="post-card featured-post is-clickable" onClick={() => openPost(1)}>
           <PostAuthor city="Алматы" minutes={12} />
           <span className="city-tag"># Алматы</span>
           <blockquote className="featured-body">
@@ -308,11 +313,11 @@ export default function Home() {
               <p className="featured-question">Где теперь пить кофе без очереди?</p>
             </div>
           </blockquote>
-          <PostActions likes={128} separated />
+          <PostActions likes={128} initialComments={["Да, там очереди по 30 минут!", "Попробуйте кофейню на Достык"]} separated />
         </article>
 
         <div className="secondary-posts">
-          <article className="post-card photo-post">
+          <article className="post-card photo-post is-clickable" onClick={() => openPost(2)}>
             <PostAuthor named city="Алматы" minutes={28} />
             <span className="city-tag"># Алматы</span>
             <p className="post-copy">Вечерний Алматы — отдельный вид любви. Делитесь любимыми маршрутами для прогулок.</p>
@@ -326,7 +331,7 @@ export default function Home() {
             />
             <PostActions likes={86} />
           </article>
-          <article className="post-card short-post">
+          <article className="post-card short-post is-clickable" onClick={() => openPost(3)}>
             <PostAuthor city="Астана" minutes={45} />
             <span className="city-tag"># Астана</span>
             <p className="post-copy">Какой район вы бы выбрали для жизни и почему?</p>
@@ -337,8 +342,3 @@ export default function Home() {
     </main>
   );
 }
-<PostActions 
-  likes={128} 
-  initialComments={["Да, там очереди по 30 минут!", "Попробуйте кофейню на Достык"]} 
-  separated 
-/>
