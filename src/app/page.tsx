@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 type IconName = "home" | "flame" | "bookmark" | "user" | "globe" | "search" | "pencil" | "lock" | "heart" | "more" | "mask";
@@ -83,6 +84,7 @@ function PostActions({ likes: initialLikes, separated = false }: { likes: number
 }
 
 export default function Home() {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState("Лента");
   const [activeCity, setActiveCity] = useState("Все города");
   const [isAnonymous, setIsAnonymous] = useState(true);
@@ -119,7 +121,9 @@ export default function Home() {
             <button
               key={item.name}
               type="button"
-              onClick={() => setActiveNav(item.name)}
+              onClick={() =>
+                item.name === "Профиль" ? router.push("/profile") : setActiveNav(item.name)
+              }
               className={`navigation-item ${activeNav === item.name ? "is-active" : ""}`}
               aria-current={activeNav === item.name ? "page" : undefined}
             >
@@ -169,42 +173,42 @@ export default function Home() {
           />
         </label>
         <div className="composer-controls">
-          <div 
-  className="anonymous-control" 
-  onClick={() => setIsAnonymous(!isAnonymous)}
-  style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", userSelect: "none" }}
->
-  <Icon name="mask" />
-  <span>Анонимно</span>
-  <div 
-    style={{
-      width: "54px",
-      height: "32px",
-      borderRadius: "20px",
-      backgroundColor: isAnonymous ? "var(--coral)" : "#cbd5e1",
-      padding: "4px",
-      transition: "background-color 0.2s ease",
-      boxSizing: "border-box",
-      display: "flex",
-      alignItems: "center"
-    }}
-  >
-    <span 
-      style={{
-        width: "24px",
-        height: "24px",
-        borderRadius: "50%",
-        backgroundColor: "#fffaf4",
-        boxShadow: "0 1px 3px rgba(16, 34, 63, 0.2)",
-        transform: isAnonymous ? "translateX(22px)" : "translateX(0px)",
-        transition: "transform 0.2s ease"
-      }} 
-    />
-  </div>
-</div>
-          <button 
-            type="button" 
-            onClick={handlePublish} 
+          <div
+            className="anonymous-control"
+            onClick={() => setIsAnonymous(!isAnonymous)}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", userSelect: "none" }}
+          >
+            <Icon name="mask" />
+            <span>Анонимно</span>
+            <div
+              style={{
+                width: "54px",
+                height: "32px",
+                borderRadius: "20px",
+                backgroundColor: isAnonymous ? "var(--coral)" : "#cbd5e1",
+                padding: "4px",
+                transition: "background-color 0.2s ease",
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center"
+              }}
+            >
+              <span
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "50%",
+                  backgroundColor: "#fffaf4",
+                  boxShadow: "0 1px 3px rgba(16, 34, 63, 0.2)",
+                  transform: isAnonymous ? "translateX(22px)" : "translateX(0px)",
+                  transition: "transform 0.2s ease"
+                }}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handlePublish}
             className="publish-button"
           >
             Опубликовать
@@ -235,13 +239,13 @@ export default function Home() {
             <PostAuthor named city="Алматы" minutes={28} />
             <span className="city-tag"># Алматы</span>
             <p className="post-copy">Вечерний Алматы — отдельный вид любви. Делитесь любимыми маршрутами для прогулок.</p>
-            <Image 
-              className="city-photo" 
-              src="/images/almaty-evening.png" 
-              alt="Вечерний Алматы на фоне заснеженных гор в розовом свете заката" 
-              width={2172} 
-              height={724} 
-              sizes="(max-width: 800px) calc(100vw - 64px), (max-width: 1200px) 42vw, 570px" 
+            <Image
+              className="city-photo"
+              src="/images/almaty-evening.png"
+              alt="Вечерний Алматы на фоне заснеженных гор в розовом свете заката"
+              width={2172}
+              height={724}
+              sizes="(max-width: 800px) calc(100vw - 64px), (max-width: 1200px) 42vw, 570px"
             />
             <PostActions likes={86} />
           </article>
