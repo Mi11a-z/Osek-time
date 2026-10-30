@@ -57,23 +57,23 @@ function PostActions({ likes: initialLikes, separated = false }: { likes: number
 
   return (
     <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
-      <button 
-        type="button" 
+      <button
+        type="button"
         onClick={handleLike}
-        className={`like-button ${isLiked ? "is-liked" : ""}`} 
-        style={isLiked ? { color: "#ef4444" } : {}}
+        className={`like-button ${isLiked ? "is-liked" : ""}`}
+        aria-pressed={isLiked}
         aria-label={`Нравится: ${likes}`}
       >
         <Icon name="heart" />
         <span>{likes}</span>
       </button>
       <span className="action-divider" aria-hidden="true" />
-      <button 
-        type="button" 
+      <button
+        type="button"
         onClick={() => setIsSaved(!isSaved)}
-        className={`icon-button ${isSaved ? "text-yellow-500" : ""}`} 
-        style={isSaved ? { color: "#eab308" } : {}}
-        aria-label="Сохранить публикацию"
+        className={`icon-button save-button ${isSaved ? "is-saved" : ""}`}
+        aria-pressed={isSaved}
+        aria-label={isSaved ? "Убрать из сохранённого" : "Сохранить публикацию"}
       >
         <Icon name="bookmark" />
       </button>
