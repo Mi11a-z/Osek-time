@@ -16,16 +16,16 @@ function formatTime(minutes: number) {
 
 export function ProfilePostCard({ post, user, avatar, onLike, onSave }: ProfilePostCardProps) {
   return (
-    <article className="pf-post">
-      <header className="pf-post-head">
+    <article className="border-solid border-line bg-surface [padding:var(--cards-profile-padding)] [border-width:var(--borders-thin)] [border-radius:var(--cards-profile-radius)]">
+      <header className="mb-3.5 flex items-center gap-3.5">
         <ProfileAvatar avatar={avatar} name={user.name} variant="post" />
         <div>
-          <span className="pf-post-name">{user.name}</span>
-          <span className="pf-post-meta">{user.city} · {formatTime(post.minutes)}</span>
+          <span className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]">{user.name}</span>
+          <span className="block text-muted [font-size:var(--font-sizes-meta)]">{user.city} · {formatTime(post.minutes)}</span>
         </div>
       </header>
-      <span className="pf-tag"># {user.city}</span>
-      <p className="pf-post-text">{post.text}</p>
+      <span className="inline-block rounded-[var(--radii-tag)] bg-peach px-3 py-1.5 text-coral-deep [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]"># {user.city}</span>
+      <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)]">{post.text}</p>
       <PostActions
         likes={post.likes}
         isLiked={post.liked}

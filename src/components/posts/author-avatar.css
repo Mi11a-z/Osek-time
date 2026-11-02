@@ -1,9 +1,0 @@
-.author-avatar-placeholder {
-  display: grid;
-  place-items: center;
-  background: var(--colors-avatar);
-  color: var(--ink);
-  font-family: var(--fonts-heading);
-  font-size: var(--font-sizes-heading);
-  font-weight: var(--font-weights-bold);
-}

@@ -1,5 +1,4 @@
 import Image from "next/image";
-import "./author-avatar.css";
 
 type AuthorAvatarProps = {
   author: string;
@@ -15,7 +14,7 @@ export function AuthorAvatar({ author, src, className }: AuthorAvatarProps) {
   const initial = author.trim().charAt(0).toLocaleUpperCase("ru") || "?";
 
   return (
-    <span className={`${className} author-avatar-placeholder`} aria-hidden="true">
+    <span className={`${className} grid place-items-center [background:var(--colors-avatar)] text-ink font-display [font-size:var(--font-sizes-heading)] [font-weight:var(--font-weights-bold)]`} aria-hidden="true">
       {initial}
     </span>
   );

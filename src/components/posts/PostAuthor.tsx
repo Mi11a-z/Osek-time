@@ -9,22 +9,37 @@ type PostAuthorProps = {
   named: boolean;
   city: string;
   minutes: number;
+  variant?: "featured" | "compact";
 };
 
-export function PostAuthor({ author, avatar, named, city, minutes }: PostAuthorProps) {
+export function PostAuthor({ author, avatar, named, city, minutes, variant = "compact" }: PostAuthorProps) {
+  const featured = variant === "featured";
+  const avatarSize = featured
+    ? "[width:var(--avatars-featured-size)] [height:var(--avatars-featured-size)] max-[1000px]:[width:var(--avatars-featured-size-at1000)] max-[1000px]:[height:var(--avatars-featured-size-at1000)] max-[480px]:[width:var(--avatars-featured-size-at480)] max-[480px]:[height:var(--avatars-featured-size-at480)]"
+    : "[width:var(--avatars-compact-size)] [height:var(--avatars-compact-size)]";
+  const avatarClass = `shrink-0 [border-radius:var(--radii-round)] object-cover ${avatarSize}`;
+  const nameSize = featured
+    ? "[font-size:var(--font-sizes-title)] max-[1000px]:[font-size:var(--font-sizes-author)] max-[480px]:[font-size:var(--font-sizes-body-large)]"
+    : "[font-size:var(--font-sizes-author)]";
+  const metaSize = featured
+    ? "[font-size:var(--font-sizes-body-large)] max-[1000px]:[font-size:var(--font-sizes-input)] max-[480px]:[font-size:var(--font-sizes-meta)]"
+    : "[font-size:var(--font-sizes-input)]";
+
   return (
-    <header className="post-author">
+    <header className={`flex min-w-0 items-center ${featured ? "gap-5 max-[1000px]:gap-3" : "gap-4 max-[1000px]:gap-2.5"}`}>
       {named ? (
-        <AuthorAvatar className="avatar avatar-person" author={author} src={avatar} />
+        <AuthorAvatar className={avatarClass} author={author} src={avatar} />
       ) : (
-        <span className="avatar avatar-anonymous"><Icon name="mask" /></span>
+        <span className={`${avatarClass} grid place-items-center [background:var(--colors-avatar)]`}>
+          <Icon name="mask" className={`fill-current stroke-none ${featured ? "size-9" : "size-[34px]"}`} />
+        </span>
       )}
-      <div className="author-details">
-        <span className="author-name">{author}</span>
-        <span className="post-meta">{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`}>{author}</span>
+        <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
-      <button type="button" className="icon-button post-menu" aria-label="Действия с публикацией" onClick={(event) => event.stopPropagation()}>
-        <Icon name="more" />
+      <button type="button" className="ml-auto inline-flex min-h-9 min-w-9 cursor-default items-center justify-center border-0 bg-transparent p-1 text-inherit focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4" aria-label="Действия с публикацией" onClick={(event) => event.stopPropagation()}>
+        <Icon name="more" className="size-[26px] fill-current stroke-none" />
       </button>
     </header>
   );

@@ -60,16 +60,16 @@ export function ProfileView() {
   };
 
   return (
-    <main className="pf-shell">
+    <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
       <BackHeader prefix="pf" />
       <ProfileHeader user={profileUser} avatar={avatar} onAvatarChange={handleAvatar} stats={stats} />
       <ProfileTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      <section className="pf-feed" aria-label="Публикации">
+      <section className="grid [gap:var(--profile-posts-gap)]" aria-label="Публикации">
         {activeTab === "comments" ? (
-          <p className="pf-empty">История комментариев пока недоступна.</p>
+          <p className="py-[50px] text-center text-muted">История комментариев пока недоступна.</p>
         ) : visiblePosts.length === 0 ? (
-          <p className="pf-empty">Здесь пока ничего нет.</p>
+          <p className="py-[50px] text-center text-muted">Здесь пока ничего нет.</p>
         ) : (
           visiblePosts.map((post) => (
             <ProfilePostCard key={post.id} post={post} user={profileUser} avatar={avatar} onLike={toggleLike} onSave={toggleSave} />

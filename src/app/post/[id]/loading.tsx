@@ -1,11 +1,10 @@
 import { BackHeader } from "../../../components/ui/BackHeader";
-import "./post.css";
 
 export default function PostLoading() {
   return (
-    <main className="pd-shell" aria-busy="true">
+    <main className="mx-auto [max-width:var(--layout-post-max-width)] [padding:var(--layout-post-padding)]" aria-busy="true">
       <BackHeader prefix="pd" />
-      <p className="pd-empty" role="status">Загрузка публикации…</p>
+      <p className="py-[30px] text-center text-muted" role="status">Загрузка публикации…</p>
     </main>
   );
 }

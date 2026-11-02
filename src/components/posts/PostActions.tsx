@@ -1,7 +1,6 @@
 "use client";
 
 import { Icon } from "../ui/Icon";
-import "./post-actions.css";
 
 type PostActionsProps = {
   likes: number;
@@ -16,34 +15,41 @@ type PostActionsProps = {
   separated?: boolean;
 };
 
+const actionClass = "inline-flex shrink-0 items-center justify-center [gap:var(--actions-button-gap)] [min-width:var(--actions-button-min-size)] [min-height:var(--actions-button-min-size)] [padding:var(--actions-button-padding)] border-0 bg-transparent [font-size:var(--actions-text-size)] [font-weight:var(--font-weights-semibold)] no-underline max-[480px]:[gap:var(--actions-button-gap-at480)] max-[480px]:[font-size:var(--actions-text-size-at480)]";
+const interactiveClass = "cursor-pointer [transition:transform_var(--motion-press-duration)_ease,color_var(--motion-transition-duration)_ease] hover:[transform:scale(1.08)] active:[transform:scale(0.92)] focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4 motion-reduce:[transition:none]";
+const iconSize = "[width:var(--actions-icon-size)] [height:var(--actions-icon-size)] max-[480px]:[width:var(--actions-icon-size-at480)] max-[480px]:[height:var(--actions-icon-size-at480)]";
+const dividerClass = "shrink-0 [width:var(--borders-thin)] [height:var(--actions-divider-height)] [background:var(--colors-divider)]";
+
 export function PostActions({ likes, isLiked, isSaved, commentCount, onLike, onSave, onToggleComments, commentsHref, commentsOpen = false, separated = false }: PostActionsProps) {
-  const commentContent = <><Icon name="comment" /><span>{commentCount}</span></>;
+  const commentContent = <><Icon name="comment" className={iconSize} /><span>{commentCount}</span></>;
 
   return (
-    <footer className={`post-actions${separated ? " post-actions-separated" : ""}`}>
-      <button type="button" onClick={onLike} className={`post-action-item like-button ${isLiked ? "is-liked" : ""}`} aria-pressed={isLiked} aria-label={`Нравится: ${likes}`}>
-        <Icon name="heart" />
+    <footer className={`flex items-center [gap:var(--actions-gap)] [min-height:var(--actions-min-height)] [margin-top:var(--actions-top-space)] max-[480px]:[gap:var(--actions-gap-at480)] ${separated ? "[border-top:var(--borders-thin)_solid_var(--colors-quote-divider)] [padding-top:var(--actions-separated-padding)]" : ""}`}>
+      <button type="button" onClick={onLike} className={`${actionClass} ${interactiveClass} ${isLiked ? "[color:var(--colors-liked)]" : "text-inherit"}`} aria-pressed={isLiked} aria-label={`Нравится: ${likes}`}>
+        <Icon name="heart" className={`${iconSize} stroke-coral [transition:fill_var(--motion-transition-duration)_ease] motion-reduce:[transition:none] ${isLiked ? "fill-coral [animation:like-pop_var(--motion-like-duration)_ease] motion-reduce:[animation:none]" : "fill-none"}`} />
         <span>{likes}</span>
       </button>
-      <span className="action-divider" aria-hidden="true" />
+      <span className={dividerClass} aria-hidden="true" />
       {onToggleComments ? (
-        <button type="button" onClick={onToggleComments} className={`post-action-item like-button comments-toggle ${commentsOpen ? "is-open" : ""}`} aria-expanded={commentsOpen} aria-label={`Комментарии: ${commentCount}`}>
+        <button type="button" onClick={onToggleComments} className={`${actionClass} ${interactiveClass} ${commentsOpen ? "text-coral" : "text-inherit"}`} aria-expanded={commentsOpen} aria-label={`Комментарии: ${commentCount}`}>
           {commentContent}
         </button>
       ) : commentsHref ? (
-        <a href={commentsHref} className="post-action-item like-button comments-toggle" aria-label={`Перейти к комментариям: ${commentCount}`}>
+        <a href={commentsHref} className={`${actionClass} ${interactiveClass} text-inherit`} aria-label={`Перейти к комментариям: ${commentCount}`}>
           {commentContent}
         </a>
       ) : (
-        <span className="post-action-item comments-count" role="img" aria-label={`Комментарии: ${commentCount}`}>
+        <span className={`${actionClass} text-inherit`} role="img" aria-label={`Комментарии: ${commentCount}`}>
           {commentContent}
         </span>
       )}
-      <span className="action-divider" aria-hidden="true" />
-      <button type="button" onClick={onSave} className={`post-action-item icon-button save-button ${isSaved ? "is-saved" : ""}`} aria-pressed={isSaved} aria-label={isSaved ? "Убрать из сохранённого" : "Сохранить публикацию"}>
-        <Icon name="bookmark" />
+      <span className={dividerClass} aria-hidden="true" />
+      <button type="button" onClick={onSave} className={`${actionClass} ${interactiveClass} ${isSaved ? "[color:var(--colors-saved)]" : "text-inherit"}`} aria-pressed={isSaved} aria-label={isSaved ? "Убрать из сохранённого" : "Сохранить публикацию"}>
+        <Icon name="bookmark" className={`${iconSize} ${isSaved ? "fill-current [animation:save-bounce_var(--motion-save-duration)_ease] motion-reduce:[animation:none]" : "fill-none"}`} />
       </button>
-      <button type="button" className="post-action-item icon-button action-more" aria-label="Ещё действия с публикацией"><Icon name="more" /></button>
+      <button type="button" className={`${actionClass} ml-auto cursor-pointer text-inherit focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4`} aria-label="Ещё действия с публикацией">
+        <Icon name="more" className={`${iconSize} fill-current stroke-none`} />
+      </button>
     </footer>
   );
 }
