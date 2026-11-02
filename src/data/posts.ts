@@ -1,7 +1,9 @@
+// Демонстрационные данные: лента и страница поста используют один список.
 export type Post = {
   id: number;
   named: boolean;
   author: string;
+  avatar?: string;
   city: string;
   minutes: number;
   text: string;
@@ -28,6 +30,7 @@ export const posts: Post[] = [
     id: 2,
     named: true,
     author: "Айдана",
+    avatar: "/images/aidana-avatar.svg",
     city: "Алматы",
     minutes: 28,
     text: "Вечерний Алматы — отдельный вид любви. Делитесь любимыми маршрутами для прогулок.",
@@ -45,5 +48,16 @@ export const posts: Post[] = [
     text: "Какой район вы бы выбрали для жизни и почему?",
     likes: 54,
     comments: [],
+  },
+
+   {
+    id: 4,
+    named: true,
+    author: "Камилла",
+    city: "Астана",
+    minutes: 1,
+    text: "посоветуйте где поесть студенту в астане ",
+    likes: 0,
+    comments: ["Frito", "Durum"],
   },
 ];
