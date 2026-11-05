@@ -9,9 +9,10 @@ type ProfileHeaderProps = {
   avatar: string | null;
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
   stats: { posts: number; likes: number; comments: number; saved: number };
+  onEdit: () => void;
 };
 
-export function ProfileHeader({ user, avatar, onAvatarChange, stats }: ProfileHeaderProps) {
+export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit }: ProfileHeaderProps) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   return (
@@ -35,7 +36,7 @@ export function ProfileHeader({ user, avatar, onAvatarChange, stats }: ProfileHe
           <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-body-medium)]">{user.bio}</p>
         </div>
 
-        <button type="button" className="mt-4 cursor-pointer rounded-[var(--radii-pill)] border-solid border-ink bg-transparent px-[22px] py-3 text-ink [border-width:var(--borders-strong)] [font-weight:var(--font-weights-bold)] hover:bg-ink hover:[color:var(--colors-white)]">Редактировать</button>
+        <button type="button" onClick={onEdit} className="mt-4 cursor-pointer rounded-[var(--radii-pill)] border-solid border-ink bg-transparent px-[22px] py-3 text-ink [border-width:var(--borders-strong)] [font-weight:var(--font-weights-bold)] hover:bg-ink hover:[color:var(--colors-white)]">Редактировать</button>
       </div>
 
       <div className="grid grid-cols-4 border-solid border-line [border-top-width:var(--borders-thin)] max-[650px]:grid-cols-2">
