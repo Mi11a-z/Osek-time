@@ -1,28 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import type { ProfilePost, ProfileUser } from "../../data/profile";
+import { Comments } from "../Comments";
 import { PostActions } from "../posts/PostActions";
 import { PostMenu } from "./PostMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
+import type { MyPost, MyUser } from "./types";
 
 type ProfilePostCardProps = {
-  post: ProfilePost;
-  user: ProfileUser;
+  post: MyPost;
+  user: MyUser;
   avatar: string | null;
   onLike: (id: number) => void;
   onSave: (id: number) => void;
   onDelete: (id: number) => void;
   onEdit: (id: number, text: string) => void;
+  onAddComment: (id: number, text: string) => void;
+  onDeleteComment: (id: number, index: number) => void;
 };
 
 function formatTime(minutes: number) {
+  if (minutes < 1) return "только что";
   return minutes < 60 ? `${minutes} мин` : `${Math.floor(minutes / 60)} ч`;
 }
 
-export function ProfilePostCard({ post, user, avatar, onLike, onSave, onDelete, onEdit }: ProfilePostCardProps) {
+export function ProfilePostCard({
+  post,
+  user,
+  avatar,
+  onLike,
+  onSave,
+  onDelete,
+  onEdit,
+  onAddComment,
+  onDeleteComment,
+}: ProfilePostCardProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.text);
+  const [showComments, setShowComments] = useState(false);
+
+  // у поста с фото текст может быть пустым
+  const canSave = draft.trim().length > 0 || Boolean(post.image);
 
   function startEdit() {
     setDraft(post.text);
@@ -30,9 +48,8 @@ export function ProfilePostCard({ post, user, avatar, onLike, onSave, onDelete, 
   }
 
   function saveEdit() {
-    const text = draft.trim();
-    if (!text) return;
-    onEdit(post.id, text);
+    if (!canSave) return;
+    onEdit(post.id, draft.trim());
     setEditing(false);
   }
 
@@ -60,13 +77,18 @@ export function ProfilePostCard({ post, user, avatar, onLike, onSave, onDelete, 
             <button type="button" onClick={() => setEditing(false)} className="cursor-pointer rounded-[var(--radii-pill)] border-solid border-line bg-transparent px-4 py-2 [border-width:var(--borders-thin)]">
               Отмена
             </button>
-            <button type="button" disabled={!draft.trim()} onClick={saveEdit} className="cursor-pointer rounded-[var(--radii-pill)] border-0 bg-coral px-4 py-2 [color:var(--colors-white)] [font-weight:var(--font-weights-bold)] disabled:opacity-50">
+            <button type="button" disabled={!canSave} onClick={saveEdit} className="cursor-pointer rounded-[var(--radii-pill)] border-0 bg-coral px-4 py-2 [color:var(--colors-white)] [font-weight:var(--font-weights-bold)] disabled:opacity-50">
               Сохранить
             </button>
           </div>
         </div>
       ) : (
-        <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)]">{post.text}</p>
+        post.text && <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)] [overflow-wrap:anywhere]">{post.text}</p>
+      )}
+
+      {post.image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={post.image} alt="" className="mt-3.5 block max-h-[480px] w-full rounded-xl object-cover" />
       )}
 
       <PostActions
@@ -76,9 +98,20 @@ export function ProfilePostCard({ post, user, avatar, onLike, onSave, onDelete, 
         commentCount={post.comments}
         onLike={() => onLike(post.id)}
         onSave={() => onSave(post.id)}
+        onToggleComments={() => setShowComments((v) => !v)}
+        commentsOpen={showComments}
         menu={<PostMenu onEdit={startEdit} onDelete={() => onDelete(post.id)} />}
         separated
       />
+
+      <div hidden={!showComments}>
+        <Comments
+          comments={post.commentList ?? []}
+          onAdd={(text) => onAddComment(post.id, text)}
+          onDelete={(index) => onDeleteComment(post.id, index)}
+          variant="feed"
+        />
+      </div>
     </article>
   );
 }

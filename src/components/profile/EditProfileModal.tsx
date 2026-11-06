@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ProfileUser } from "../../data/profile";
 
-export type ProfileForm = Pick<ProfileUser, "name" | "city" | "bio">;
+export type ProfileForm = {
+  name: string;
+  username: string;
+  city: string;
+  country: string;
+  bio: string;
+};
 
 type EditProfileModalProps = {
   profile: ProfileForm;
@@ -13,6 +18,8 @@ type EditProfileModalProps = {
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border-solid border-line bg-transparent px-3.5 py-2.5 [border-width:var(--borders-thin)] focus:border-coral focus:outline-none";
+
+const usernamePattern = /^[a-z0-9_.]{3,20}$/i;
 
 export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalProps) {
   const [form, setForm] = useState<ProfileForm>(profile);
@@ -27,16 +34,31 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const valid = form.name.trim().length > 0 && form.city.trim().length > 0;
+  // в юзернейме убираем @ и пробелы
+  const setUsername = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, username: e.target.value.replace(/[@\s]/g, "") }));
+
+  const usernameValid = usernamePattern.test(form.username);
+  const valid =
+    form.name.trim().length > 0 &&
+    form.city.trim().length > 0 &&
+    form.country.trim().length > 0 &&
+    usernameValid;
 
   function submit() {
     if (!valid) return;
-    onSave({ name: form.name.trim(), city: form.city.trim(), bio: form.bio.trim() });
+    onSave({
+      name: form.name.trim(),
+      username: form.username.trim(),
+      city: form.city.trim(),
+      country: form.country.trim(),
+      bio: form.bio.trim(),
+    });
     onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(0_0_0/0.4)] p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[rgb(0_0_0/0.4)] p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -52,9 +74,28 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
         </label>
 
         <label className="mt-3 block text-sm [font-weight:var(--font-weights-bold)]">
-          Город
-          <input value={form.city} onChange={set("city")} maxLength={40} className={inputClass} />
+          Username
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3.5 top-1/2 mt-[3px] -translate-y-1/2 text-muted">@</span>
+            <input value={form.username} onChange={setUsername} maxLength={20} className={`${inputClass} pl-8`} />
+          </div>
         </label>
+        {!usernameValid && (
+          <p className="mt-1 text-coral-deep [font-size:var(--font-sizes-meta)]">
+            3–20 символов: латинские буквы, цифры, «_» и «.»
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="mt-3 block text-sm [font-weight:var(--font-weights-bold)]">
+            Страна
+            <input value={form.country} onChange={set("country")} maxLength={40} className={inputClass} />
+          </label>
+          <label className="mt-3 block text-sm [font-weight:var(--font-weights-bold)]">
+            Город
+            <input value={form.city} onChange={set("city")} maxLength={40} className={inputClass} />
+          </label>
+        </div>
 
         <label className="mt-3 block text-sm [font-weight:var(--font-weights-bold)]">
           О себе

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, type ChangeEvent } from "react";
-import type { ProfileUser } from "../../data/profile";
+import type { MyUser } from "./types";
 import { ProfileAvatar } from "./ProfileAvatar";
 
 type ProfileHeaderProps = {
-  user: ProfileUser;
+  user: MyUser;
   avatar: string | null;
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
   stats: { posts: number; likes: number; comments: number; saved: number };
@@ -32,7 +32,7 @@ export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit }: P
 
         <div className="min-w-0 flex-1 pt-4">
           <h1 className="m-0 font-display tracking-[-0.02em] [font-size:var(--font-sizes-profile-name)] [font-weight:var(--font-weights-heavy)]">{user.name}</h1>
-          <p className="mt-1.5 text-muted">@{user.username} <span aria-hidden="true">·</span> {user.city}, Казахстан</p>
+          <p className="mt-1.5 text-muted">@{user.username} <span aria-hidden="true">·</span> {user.city}, {user.country}</p>
           <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-body-medium)]">{user.bio}</p>
         </div>
 
