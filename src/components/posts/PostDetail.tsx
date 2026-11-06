@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { useModeration, removePost, blockUser } from "../../moderation";
+import { PostMenu } from "../profile/PostMenu";
+import { ReportDialog } from "./ReportDialog";
 import Image from "next/image";
 import type { Post } from "../../data/posts";
 import { usePostInteractions } from "../../usePostInteractions";
@@ -12,6 +16,14 @@ const detailAvatarClass = "[width:var(--avatars-detail-size)] [height:var(--avat
 
 export function PostDetail({ post }: { post: Post }) {
   const { likes, isLiked, isSaved, comments, toggleLike, toggleSave, addComment, deleteComment } = usePostInteractions(post.likes, post.comments);
+
+  const { ready, role, removed, blocked } = useModeration();
+  const [reporting, setReporting] = useState(false);
+  const authorId = post.named ? post.author : null;
+  if (!ready) return null;
+  if (removed.includes(post.id) || (authorId !== null && blocked.includes(authorId))) {
+    return <main className="mx-auto max-w-3xl p-6"><BackHeader prefix="pd" /><p>Публикация недоступна.</p></main>;
+  }
 
   return (
     <main className="mx-auto [max-width:var(--layout-post-max-width)] [padding:var(--layout-post-padding)]">
@@ -28,6 +40,7 @@ export function PostDetail({ post }: { post: Post }) {
             <span className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]">{post.author}</span>
             <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {post.minutes} мин</span>
           </div>
+          <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={role === "admin" ? () => removePost(post.id) : undefined} deleteLabel="Удалить пост (админ)" onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId) : undefined} />
         </header>
 
         <span className="inline-block px-3 py-1.5 [border-radius:var(--radii-tag)] bg-peach text-coral-deep [font-weight:var(--font-weights-bold)] [font-size:var(--font-sizes-meta)]"># {post.city}</span>
@@ -57,6 +70,7 @@ export function PostDetail({ post }: { post: Post }) {
         />
       </article>
 
+      {reporting && <ReportDialog post={{ postId: post.id, postText: post.text, postAuthor: post.author, authorId }} onClose={() => setReporting(false)} />}
       <div id="post-comments">
         <Comments variant="detail" comments={comments} onAdd={addComment} onDelete={deleteComment} />
       </div>

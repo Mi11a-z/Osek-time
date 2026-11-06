@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { Icon } from "../ui/Icon";
 
@@ -10,9 +11,10 @@ type PostAuthorProps = {
   city: string;
   minutes: number;
   variant?: "featured" | "compact";
+  menu?: ReactNode;
 };
 
-export function PostAuthor({ author, avatar, named, city, minutes, variant = "compact" }: PostAuthorProps) {
+export function PostAuthor({ author, avatar, named, city, minutes, variant = "compact", menu }: PostAuthorProps) {
   const featured = variant === "featured";
   const avatarSize = featured
     ? "[width:var(--avatars-featured-size)] [height:var(--avatars-featured-size)] max-[1000px]:[width:var(--avatars-featured-size-at1000)] max-[1000px]:[height:var(--avatars-featured-size-at1000)] max-[480px]:[width:var(--avatars-featured-size-at480)] max-[480px]:[height:var(--avatars-featured-size-at480)]"
@@ -38,9 +40,13 @@ export function PostAuthor({ author, avatar, named, city, minutes, variant = "co
         <span className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`}>{author}</span>
         <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
-      <button type="button" className="ml-auto inline-flex min-h-9 min-w-9 cursor-default items-center justify-center border-0 bg-transparent p-1 text-inherit focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4" aria-label="Действия с публикацией" onClick={(event) => event.stopPropagation()}>
+      {menu ? (
+        <div className="ml-auto" onClick={(event) => event.stopPropagation()}>{menu}</div>
+      ) : (
+        <button type="button" className="ml-auto inline-flex min-h-9 min-w-9 cursor-default items-center justify-center border-0 bg-transparent p-1 text-inherit focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4" aria-label="Действия с публикацией" onClick={(event) => event.stopPropagation()}>
         <Icon name="more" className="size-[26px] fill-current stroke-none" />
       </button>
+      )}
     </header>
   );
 }

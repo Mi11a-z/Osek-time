@@ -5,6 +5,7 @@ import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
 import { PostCard } from "../components/posts/PostCard";
 import { posts } from "../data/posts";
+import { useModeration } from "../moderation";
 import { useSavedIds } from "../data/saved";
 
 const shellClass = `w-full mx-auto [max-width:var(--layout-feed-max-width)] [padding:var(--layout-feed-padding)]
@@ -22,12 +23,13 @@ export default function Home() {
   const [activeCity, setActiveCity] = useState("Все города");
   const [searchQuery, setSearchQuery] = useState("");
   const savedIds = useSavedIds();
+  const { ready, removed, blocked } = useModeration();
 
   let filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase();
     const matchesCity = activeCity === "Все города" || post.city === activeCity;
     const matchesSearch = query === "" || post.text.toLowerCase().includes(query);
-    return matchesCity && matchesSearch;
+    return ready && !removed.includes(post.id) && !(post.named && blocked.includes(post.author)) && matchesCity && matchesSearch;
   });
 
   if (activeNav === "Сохранённое") {

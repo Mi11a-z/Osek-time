@@ -5,11 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Post } from "../../data/posts";
-import { toggleSaved, useSavedIds } from "../../data/saved";
 import { usePostInteractions } from "../../usePostInteractions";
 import { Comments } from "../Comments";
 import { PostAuthor } from "./PostAuthor";
 import { PostActions } from "./PostActions";
+import { PostMenu } from "../profile/PostMenu";
+import { ReportDialog } from "./ReportDialog";
+import { blockUser, removePost, useModeration } from "../../moderation";
 
 type PostCardProps = {
   post: Post;
@@ -26,8 +28,14 @@ export function PostCard({ post, variant }: PostCardProps) {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
   const interactions = usePostInteractions(post.likes, post.comments);
-  const savedIds = useSavedIds();
-  const isSaved = savedIds.includes(post.id);
+  const { role, removed, blocked } = useModeration();
+  const [reporting, setReporting] = useState(false);
+  const isAdmin = role === "admin";
+  const authorId = post.named ? post.author : null;
+
+  // удалённые посты и посты заблокированных авторов скрываем из ленты
+  if (removed.includes(post.id) || (authorId !== null && blocked.includes(authorId))) return null;
+
   const href = `/post/${post.id}`;
   const featured = variant === "featured";
   const copySize = variant === "short"
@@ -39,7 +47,23 @@ export function PostCard({ post, variant }: PostCardProps) {
       className={`min-w-0 cursor-pointer [background:var(--cards-background)] [border-radius:var(--cards-radius)] [transition:box-shadow_var(--motion-transition-duration)_ease] hover:[box-shadow:var(--shadows-card-hover)] motion-reduce:[transition:none] ${featured ? featuredCardClass : compactCardClass}`}
       onClick={() => router.push(href)}
     >
-      <PostAuthor author={post.author} avatar={post.avatar} named={post.named} city={post.city} minutes={post.minutes} variant={featured ? "featured" : "compact"} />
+      <PostAuthor
+        author={post.author}
+        avatar={post.avatar}
+        named={post.named}
+        city={post.city}
+        minutes={post.minutes}
+        variant={featured ? "featured" : "compact"}
+        menu={
+          <PostMenu
+            variant="header"
+            onReport={() => setReporting(true)}
+            onDelete={isAdmin ? () => removePost(post.id) : undefined}
+            deleteLabel="Удалить пост (админ)"
+            onBlockAuthor={isAdmin && authorId ? () => blockUser(authorId) : undefined}
+          />
+        }
+      />
       <span className={`table w-fit px-3 [border-radius:var(--radii-tag)] bg-peach [color:var(--colors-tag-text)] [font-weight:var(--font-weights-semibold)] leading-[1.45] ${featured ? featuredTagClass : compactTagClass}`}># {post.city}</span>
 
       {featured ? (
@@ -73,14 +97,21 @@ export function PostCard({ post, variant }: PostCardProps) {
         <PostActions
           likes={interactions.likes}
           isLiked={interactions.isLiked}
-          isSaved={isSaved}
+          isSaved={interactions.isSaved}
           commentCount={interactions.comments.length}
           onLike={interactions.toggleLike}
-          onSave={() => toggleSaved(post.id)}
+          onSave={interactions.toggleSave}
           onToggleComments={() => setShowComments((previous) => !previous)}
           commentsOpen={showComments}
+          showMore={false}
           separated={featured}
         />
+        {reporting && (
+          <ReportDialog
+            post={{ postId: post.id, postText: post.text, postAuthor: post.author, authorId }}
+            onClose={() => setReporting(false)}
+          />
+        )}
         <div hidden={!showComments}>
           <Comments comments={interactions.comments} onAdd={interactions.addComment} onDelete={interactions.deleteComment} variant="feed" />
         </div>

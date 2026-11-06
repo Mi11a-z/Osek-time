@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ChangeEvent } from "react";
 import { initialProfilePosts, profileUser, type ProfileTab } from "../../data/profile";
+import { AdminUnlockDialog } from "../admin/AdminUnlockDialog";
+import { useModeration } from "../../moderation";
 import { BackHeader } from "../ui/BackHeader";
 import { EditProfileModal, type ProfileForm } from "./EditProfileModal";
 import { ProfileHeader } from "./ProfileHeader";
@@ -13,6 +15,17 @@ import type { MyPost, MyUser } from "./types";
 const defaultUser: MyUser = { ...profileUser, country: "Казахстан" };
 
 export function ProfileView() {
+  const [unlocking, setUnlocking] = useState(false);
+  useEffect(() => {
+    const open = (event: KeyboardEvent) => {
+      if (event.altKey && event.shiftKey && event.code === "KeyA") {
+        event.preventDefault();
+        setUnlocking(true);
+      }
+    };
+    window.addEventListener("keydown", open);
+    return () => window.removeEventListener("keydown", open);
+  }, []);
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
   const [myPosts, setMyPosts] = useState<MyPost[]>(initialProfilePosts);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -20,7 +33,10 @@ export function ProfileView() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // загрузка сохранённых данных
+  const { role, removed, blocked } = useModeration();
+  const isAdmin = role === "admin";
+  const isBlocked = !isAdmin && blocked.includes(user.username);
+
   useEffect(() => {
     try {
       const savedAvatar = localStorage.getItem("osek-avatar");
@@ -38,7 +54,6 @@ export function ProfileView() {
     setHydrated(true);
   }, []);
 
-  // сохранение постов (после загрузки, чтобы не затереть данные)
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -68,6 +83,7 @@ export function ProfileView() {
   }
 
   function addPost(text: string, image?: string) {
+    if (isBlocked) return;
     const post = {
       id: Date.now(),
       text,
@@ -123,7 +139,10 @@ export function ProfileView() {
     )));
   }
 
-  const visiblePosts = myPosts.filter((post) => {
+  // посты, удалённые модератором, не показываем
+  const ownPosts = myPosts.filter((post) => !removed.includes(post.id));
+
+  const visiblePosts = ownPosts.filter((post) => {
     if (activeTab === "likes") return post.liked;
     if (activeTab === "saved") return post.saved;
     if (activeTab === "comments") return false;
@@ -131,10 +150,10 @@ export function ProfileView() {
   });
 
   const stats = {
-    posts: myPosts.length,
-    likes: myPosts.reduce((sum, post) => sum + post.likes, 0),
-    comments: myPosts.reduce((sum, post) => sum + post.comments, 0),
-    saved: myPosts.filter((post) => post.saved).length,
+    posts: ownPosts.length,
+    likes: ownPosts.reduce((sum, post) => sum + post.likes, 0),
+    comments: ownPosts.reduce((sum, post) => sum + post.comments, 0),
+    saved: ownPosts.filter((post) => post.saved).length,
   };
 
   return (
@@ -146,10 +165,19 @@ export function ProfileView() {
         onAvatarChange={handleAvatar}
         stats={stats}
         onEdit={() => setEditingProfile(true)}
+        isAdmin={isAdmin}
       />
       <ProfileTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      {activeTab === "posts" && <ProfilePostComposer onPublish={addPost} />}
+      {activeTab === "posts" && (
+        isBlocked ? (
+          <p className="mb-5 rounded-[var(--cards-profile-radius)] border-solid border-coral bg-peach px-5 py-4 text-coral-deep [border-width:var(--borders-thin)]">
+            Ваш аккаунт заблокирован модератором: публиковать новые посты нельзя.
+          </p>
+        ) : (
+          <ProfilePostComposer onPublish={addPost} />
+        )
+      )}
 
       <section className="grid [gap:var(--profile-posts-gap)]" aria-label="Публикации">
         {activeTab === "comments" ? (
@@ -174,6 +202,7 @@ export function ProfileView() {
         )}
       </section>
 
+      {unlocking && <AdminUnlockDialog onClose={() => setUnlocking(false)} />}
       {editingProfile && (
         <EditProfileModal
           profile={{

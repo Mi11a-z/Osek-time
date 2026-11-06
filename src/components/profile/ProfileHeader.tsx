@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, type ChangeEvent } from "react";
 import type { MyUser } from "./types";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -10,9 +11,10 @@ type ProfileHeaderProps = {
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
   stats: { posts: number; likes: number; comments: number; saved: number };
   onEdit: () => void;
+  isAdmin?: boolean;
 };
 
-export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit }: ProfileHeaderProps) {
+export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit, isAdmin = false }: ProfileHeaderProps) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   return (
@@ -31,12 +33,26 @@ export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit }: P
         </div>
 
         <div className="min-w-0 flex-1 pt-4">
-          <h1 className="m-0 font-display tracking-[-0.02em] [font-size:var(--font-sizes-profile-name)] [font-weight:var(--font-weights-heavy)]">{user.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="m-0 font-display tracking-[-0.02em] [font-size:var(--font-sizes-profile-name)] [font-weight:var(--font-weights-heavy)]">{user.name}</h1>
+            {isAdmin && (
+              <span className="rounded-[var(--radii-tag)] bg-ink px-3 py-1 [color:var(--colors-white)] [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]">
+                Админ
+              </span>
+            )}
+          </div>
           <p className="mt-1.5 text-muted">@{user.username} <span aria-hidden="true">·</span> {user.city}, {user.country}</p>
           <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-body-medium)]">{user.bio}</p>
         </div>
 
-        <button type="button" onClick={onEdit} className="mt-4 cursor-pointer rounded-[var(--radii-pill)] border-solid border-ink bg-transparent px-[22px] py-3 text-ink [border-width:var(--borders-strong)] [font-weight:var(--font-weights-bold)] hover:bg-ink hover:[color:var(--colors-white)]">Редактировать</button>
+        <div className="mt-4 flex flex-col items-stretch gap-2">
+          <button type="button" onClick={onEdit} className="cursor-pointer rounded-[var(--radii-pill)] border-solid border-ink bg-transparent px-[22px] py-3 text-ink [border-width:var(--borders-strong)] [font-weight:var(--font-weights-bold)] hover:bg-ink hover:[color:var(--colors-white)]">Редактировать</button>
+          {isAdmin && (
+            <Link href="/admin" className="rounded-[var(--radii-pill)] border-solid border-coral bg-coral px-[22px] py-3 text-center no-underline [border-width:var(--borders-strong)] [color:var(--colors-white)] [font-weight:var(--font-weights-bold)] hover:bg-coral-deep">
+              Админ-панель
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-4 border-solid border-line [border-top-width:var(--borders-thin)] max-[650px]:grid-cols-2">

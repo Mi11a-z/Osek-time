@@ -58,12 +58,12 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[rgb(0_0_0/0.4)] p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(0_0_0/0.4)] p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Редактировать профиль"
-        className="w-full max-w-md rounded-[var(--radii-panel)] bg-surface p-6"
+        className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[var(--radii-panel)] bg-surface p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="m-0 font-display text-xl [font-weight:var(--font-weights-heavy)]">Редактировать профиль</h2>
@@ -74,7 +74,7 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
         </label>
 
         <label className="mt-3 block text-sm [font-weight:var(--font-weights-bold)]">
-          Username
+          Юзернейм
           <div className="relative">
             <span className="pointer-events-none absolute left-3.5 top-1/2 mt-[3px] -translate-y-1/2 text-muted">@</span>
             <input value={form.username} onChange={setUsername} maxLength={20} className={`${inputClass} pl-8`} />
