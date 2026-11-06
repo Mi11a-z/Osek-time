@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import { FeedHeader } from "../components/feed/FeedHeader";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
@@ -15,13 +17,28 @@ const feedClass = `grid w-full mx-auto items-start [grid-template-columns:var(--
   max-[800px]:[gap:var(--layout-feed-gap-at800)]`;
 
 export default function Home() {
+  const [activeCity, setActiveCity] = useState("Все города");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredPosts = posts.filter((post: any) => {
+    const matchesCity = activeCity === "Все города" || post.city === activeCity;
+    const matchesSearch = searchQuery === "" || 
+      (post.title && post.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (post.content && post.content.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesCity && matchesSearch;
+  });
   return (
     <main className={shellClass}>
       <FeedHeader />
-      <FeedToolbar />
+      <FeedToolbar 
+  activeCity={activeCity} 
+  onCityChange={setActiveCity}
+  searchQuery={searchQuery}
+  onSearchChange={setSearchQuery}
+/>
       <PostComposer />
       <section className={feedClass} aria-label="Лента публикаций">
-        {posts.map((post, index) => (
+        {filteredPosts.map((post, index) => (
           <PostCard
             key={post.id}
             post={post}

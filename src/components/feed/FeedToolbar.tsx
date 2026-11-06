@@ -27,9 +27,19 @@ const searchClass = `flex items-center gap-[14px] [width:var(--search-width)] [m
   max-[480px]:[min-width:var(--search-min-width-at480)] max-[480px]:[min-height:var(--search-height-at480)]
   max-[480px]:[border-radius:var(--radii-search-small)] max-[480px]:[padding:var(--search-padding-at480)] max-[480px]:gap-2.5`;
 
-export function FeedToolbar() {
-  const [activeCity, setActiveCity] = useState("Все города");
-  const [searchQuery, setSearchQuery] = useState("");
+interface FeedToolbarProps {
+  activeCity: string;
+  onCityChange: (city: string) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+}
+
+export function FeedToolbar({
+  activeCity,
+  onCityChange,
+  searchQuery,
+  onSearchChange,
+}: FeedToolbarProps) {
 
   return (
     <section className={toolbarClass} aria-label="Города и поиск">
@@ -38,7 +48,7 @@ export function FeedToolbar() {
           <button
             key={city}
             type="button"
-            onClick={() => setActiveCity(city)}
+            onClick={() => onCityChange(city)}
             className={`${chipClass} ${activeCity === city ? "bg-coral border-coral [color:var(--colors-white)] px-[22px]" : "bg-transparent border-line text-inherit max-[1240px]:px-[21px]"}`}
             aria-pressed={activeCity === city}
           >
@@ -53,7 +63,7 @@ export function FeedToolbar() {
           className="w-full min-w-0 p-0 border-0 bg-transparent text-ink [font-size:var(--font-sizes-body)] placeholder:text-muted placeholder:opacity-100 max-[1240px]:[font-size:var(--font-sizes-meta)] max-[480px]:[font-size:var(--font-sizes-small)]"
           type="search"
           value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
+          onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Поиск по постам, городам, темам…"
           aria-label="Поиск по постам, городам и темам"
         />
