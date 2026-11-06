@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { FeedHeader } from "../components/feed/FeedHeader";
+import { FeedHeader, type NavTab } from "../components/feed/FeedHeader";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
 import { PostCard } from "../components/posts/PostCard";
 import { posts } from "../data/posts";
+import { useSavedIds } from "../data/saved";
 
 const shellClass = `w-full mx-auto [max-width:var(--layout-feed-max-width)] [padding:var(--layout-feed-padding)]
   min-[1600px]:[padding-top:var(--layout-feed-wide-top-from1600)]
@@ -17,27 +18,41 @@ const feedClass = `grid w-full mx-auto items-start [grid-template-columns:var(--
   max-[800px]:[gap:var(--layout-feed-gap-at800)]`;
 
 export default function Home() {
+  const [activeNav, setActiveNav] = useState<NavTab>("Лента");
   const [activeCity, setActiveCity] = useState("Все города");
   const [searchQuery, setSearchQuery] = useState("");
+  const savedIds = useSavedIds();
 
-  const filteredPosts = posts.filter((post: any) => {
+  let filteredPosts = posts.filter((post) => {
+    const query = searchQuery.toLowerCase();
     const matchesCity = activeCity === "Все города" || post.city === activeCity;
-    const matchesSearch = searchQuery === "" || 
-      (post.title && post.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (post.content && post.content.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = query === "" || post.text.toLowerCase().includes(query);
     return matchesCity && matchesSearch;
   });
+
+  if (activeNav === "Сохранённое") {
+    filteredPosts = filteredPosts.filter((post) => savedIds.includes(post.id));
+  }
+  if (activeNav === "Популярное") {
+    filteredPosts = [...filteredPosts].sort((a, b) => b.likes - a.likes);
+  }
+
   return (
     <main className={shellClass}>
-      <FeedHeader />
-      <FeedToolbar 
-  activeCity={activeCity} 
-  onCityChange={setActiveCity}
-  searchQuery={searchQuery}
-  onSearchChange={setSearchQuery}
-/>
+      <FeedHeader activeNav={activeNav} onNavChange={setActiveNav} />
+      <FeedToolbar
+        activeCity={activeCity}
+        onCityChange={setActiveCity}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
       <PostComposer />
       <section className={feedClass} aria-label="Лента публикаций">
+        {filteredPosts.length === 0 && (
+          <p className="py-[30px] text-center text-muted">
+            {activeNav === "Сохранённое" ? "Пока ничего не сохранено." : "Ничего не найдено."}
+          </p>
+        )}
         {filteredPosts.map((post, index) => (
           <PostCard
             key={post.id}

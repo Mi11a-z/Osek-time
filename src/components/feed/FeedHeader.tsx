@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Icon, type IconName } from "../ui/Icon";
 
-const navigation: { name: string; icon: IconName }[] = [
+export type NavTab = "Лента" | "Популярное" | "Сохранённое";
+
+const navigation: { name: NavTab; icon: IconName }[] = [
   { name: "Лента", icon: "home" },
   { name: "Популярное", icon: "flame" },
   { name: "Сохранённое", icon: "bookmark" },
@@ -42,9 +43,13 @@ const navigationItemClass = `flex items-center justify-center gap-3 [padding:18p
 
 const navigationIconClass = "size-[27px] max-[1240px]:size-[23px]";
 
-export function FeedHeader() {
-  const [activeNav, setActiveNav] = useState("Лента");
-
+export function FeedHeader({
+  activeNav,
+  onNavChange,
+}: {
+  activeNav: NavTab;
+  onNavChange: (tab: NavTab) => void;
+}) {
   return (
     <header className={headerClass}>
       <div className="shrink-0 max-[1000px]:text-center">
@@ -52,18 +57,21 @@ export function FeedHeader() {
         <p className={captionClass}>Обсуждают в Казахстане</p>
       </div>
       <nav className={navigationClass} aria-label="Основная навигация">
-        {navigation.map((item) => (
-          <button
-            key={item.name}
-            type="button"
-            onClick={() => setActiveNav(item.name)}
-            className={`${navigationItemClass} ${activeNav === item.name ? "text-coral-deep border-coral" : "text-inherit border-transparent"}`}
-            aria-current={activeNav === item.name ? "page" : undefined}
-          >
-            <Icon name={item.icon} className={`${navigationIconClass} ${activeNav === item.name && item.icon === "home" ? "fill-current" : ""}`} />
-            <span>{item.name}</span>
-          </button>
-        ))}
+        {navigation.map((item) => {
+          const active = item.name === activeNav;
+          return (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => onNavChange(item.name)}
+              className={`${navigationItemClass} ${active ? "text-coral-deep border-coral" : "text-inherit border-transparent"}`}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon name={item.icon} className={`${navigationIconClass} ${active && item.icon === "home" ? "fill-current" : ""}`} />
+              <span>{item.name}</span>
+            </button>
+          );
+        })}
         <Link href="/profile" className={`${navigationItemClass} text-inherit border-transparent`}>
           <Icon name="user" className={navigationIconClass} />
           <span>Профиль</span>

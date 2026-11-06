@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Post } from "../../data/posts";
+import { toggleSaved, useSavedIds } from "../../data/saved";
 import { usePostInteractions } from "../../usePostInteractions";
 import { Comments } from "../Comments";
 import { PostAuthor } from "./PostAuthor";
@@ -25,6 +26,8 @@ export function PostCard({ post, variant }: PostCardProps) {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
   const interactions = usePostInteractions(post.likes, post.comments);
+  const savedIds = useSavedIds();
+  const isSaved = savedIds.includes(post.id);
   const href = `/post/${post.id}`;
   const featured = variant === "featured";
   const copySize = variant === "short"
@@ -70,10 +73,10 @@ export function PostCard({ post, variant }: PostCardProps) {
         <PostActions
           likes={interactions.likes}
           isLiked={interactions.isLiked}
-          isSaved={interactions.isSaved}
+          isSaved={isSaved}
           commentCount={interactions.comments.length}
           onLike={interactions.toggleLike}
-          onSave={interactions.toggleSave}
+          onSave={() => toggleSaved(post.id)}
           onToggleComments={() => setShowComments((previous) => !previous)}
           commentsOpen={showComments}
           separated={featured}
