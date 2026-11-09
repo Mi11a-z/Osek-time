@@ -8,13 +8,14 @@ type PostAuthorProps = {
   author: string;
   avatar?: string;
   named: boolean;
+  isOwn?: boolean;
   city: string;
   minutes: number;
   variant?: "featured" | "compact";
   menu?: ReactNode;
 };
 
-export function PostAuthor({ author, avatar, named, city, minutes, variant = "compact", menu }: PostAuthorProps) {
+export function PostAuthor({ author, avatar, named, isOwn = false, city, minutes, variant = "compact", menu }: PostAuthorProps) {
   const featured = variant === "featured";
   const avatarSize = featured
     ? "[width:var(--avatars-featured-size)] [height:var(--avatars-featured-size)] max-[1000px]:[width:var(--avatars-featured-size-at1000)] max-[1000px]:[height:var(--avatars-featured-size-at1000)] max-[480px]:[width:var(--avatars-featured-size-at480)] max-[480px]:[height:var(--avatars-featured-size-at480)]"
@@ -37,7 +38,7 @@ export function PostAuthor({ author, avatar, named, city, minutes, variant = "co
         </span>
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`}>{author}</span>
+        <span className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`}>{isOwn && named ? "@" : ""}{author}</span>
         <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
       {menu ? (

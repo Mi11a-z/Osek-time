@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useLocalData, type LocalComment } from "../data/local-store";
 
 type CommentsProps = {
-  comments: string[];
-  onAdd: (text: string) => void;
+  comments: LocalComment[];
+  onAdd: (text: string) => boolean | void;
   onDelete: (index: number) => void;
   variant: "feed" | "detail";
+  error?: string | null;
 };
 
 const styles = {
@@ -36,30 +38,38 @@ const styles = {
   },
 };
 
-export function Comments({ comments, onAdd, onDelete, variant }: CommentsProps) {
+export function Comments({ comments, onAdd, onDelete, variant, error }: CommentsProps) {
   const [input, setInput] = useState("");
+  const { profile, ready } = useLocalData();
+  const canComment = ready && /^[a-z0-9_.]{3,20}$/i.test(profile.username);
   const isDetail = variant === "detail";
   const classes = styles[variant];
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!input.trim()) return;
-    onAdd(input.trim());
-    setInput("");
+    if (!canComment || !input.trim()) return;
+    if (onAdd(input.trim()) !== false) setInput("");
   }
 
   const form = (
-    <form onSubmit={handleSubmit} className={classes.form}>
-      <input
-        type="text"
-        value={input}
-        onChange={(event) => setInput(event.target.value)}
-        placeholder="Написать комментарий…"
-        aria-label="Текст комментария"
-        className={classes.input}
-      />
-      <button type="submit" className={classes.submit}>Отправить</button>
-    </form>
+    <div>
+      <p className="mb-2 text-muted [font-size:var(--font-sizes-meta)]">
+        {canComment ? <>Комментарий от <strong>@{profile.username}</strong></> : <>Чтобы написать комментарий, укажите ник в <a href="/profile" className="underline">профиле</a>.</>}
+      </p>
+      <form onSubmit={handleSubmit} className={classes.form}>
+        <input
+          type="text"
+          disabled={!canComment}
+          maxLength={5000}
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="Написать комментарий…"
+          aria-label="Текст комментария"
+          className={classes.input}
+        />
+        <button type="submit" disabled={!canComment || !input.trim()} className={`${classes.submit} disabled:cursor-not-allowed disabled:opacity-50`}>Отправить</button>
+      </form>
+    </div>
   );
 
   const list = comments.length === 0 ? (
@@ -67,10 +77,10 @@ export function Comments({ comments, onAdd, onDelete, variant }: CommentsProps) 
   ) : (
     <ul className={classes.list}>
       {comments.map((comment, index) => (
-        <li key={index} className={classes.item}>
-          <span className={classes.author}>Аноним:</span>
-          <span className={classes.text}>{comment}</span>
-          <button type="button" className={classes.remove} onClick={() => onDelete(index)} aria-label={`Удалить комментарий: ${comment}`}>
+        <li key={comment.id} className={classes.item}>
+          <span className={classes.author}>@{comment.username}:</span>
+          <span className={classes.text}>{comment.text}</span>
+          <button type="button" className={classes.remove} onClick={() => onDelete(index)} aria-label={`Удалить комментарий: ${comment.text}`}>
             удалить
           </button>
         </li>
@@ -82,6 +92,7 @@ export function Comments({ comments, onAdd, onDelete, variant }: CommentsProps) 
     <section className={classes.panel} aria-label="Комментарии">
       {isDetail && <h2 className="mb-[14px] font-display [font-size:var(--font-sizes-section)]">Комментарии · {comments.length}</h2>}
       {isDetail ? <>{form}{list}</> : <>{list}{form}</>}
+      {error && <p role="alert" className="mt-2 text-sm text-coral-deep">{error}</p>}
     </section>
   );
 }

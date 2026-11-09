@@ -1,38 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useLocalData, toggleLocalLike, toggleLocalSaved, addLocalComment, deleteLocalComment } from "./data/local-store";
 
-// Пока данные живут только в открытой карточке, как и до разделения компонентов.
-export function usePostInteractions(initialLikes: number, initialComments: string[] = []) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [comments, setComments] = useState(initialComments);
-
-  function toggleLike() {
-    setIsLiked((previous) => !previous);
-  }
-
-  function toggleSave() {
-    setIsSaved((previous) => !previous);
-  }
-
-  function addComment(text: string) {
-    const comment = text.trim();
-    if (comment) setComments((previous) => [...previous, comment]);
-  }
-
-  function deleteComment(index: number) {
-    setComments((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
-  }
-
+export function usePostInteractions(postId: number) {
+  const snapshot = useLocalData();
+  const post = snapshot.posts.find((entry) => entry.id === postId);
+  const comments = post?.comments ?? [];
   return {
-    likes: initialLikes + (isLiked ? 1 : 0),
-    isLiked,
-    isSaved,
-    comments,
-    toggleLike,
-    toggleSave,
-    addComment,
-    deleteComment,
+    likes: post?.likes ?? 0, isLiked: post?.liked ?? false, isSaved: post?.saved ?? false,
+    comments, error: snapshot.error,
+    toggleLike: () => toggleLocalLike(postId), toggleSave: () => toggleLocalSaved(postId),
+    addComment: (text: string) => addLocalComment(postId, text), deleteComment: (index: number) => deleteLocalComment(postId, index, comments),
   };
 }

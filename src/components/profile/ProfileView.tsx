@@ -1,21 +1,33 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
-import { initialProfilePosts, profileUser, type ProfileTab } from "../../data/profile";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import type { ProfileTab } from "../../data/profile";
+import {
+  useLocalData, createLocalPost, toggleLocalLike, toggleLocalSaved,
+  deleteLocalPost, editLocalPost, addLocalComment, deleteLocalComment,
+  saveLocalProfile, saveLocalAvatar,
+} from "../../data/local-store";
 import { AdminUnlockDialog } from "../admin/AdminUnlockDialog";
 import { useModeration } from "../../moderation";
 import { BackHeader } from "../ui/BackHeader";
+import { PostCard } from "../posts/PostCard";
 import { EditProfileModal, type ProfileForm } from "./EditProfileModal";
 import { ProfileHeader } from "./ProfileHeader";
 import { ProfilePostCard } from "./ProfilePostCard";
 import { ProfilePostComposer } from "./Profilepostcomposer";
 import { ProfileTabs } from "./ProfileTabs";
-import type { MyPost, MyUser } from "./types";
-
-const defaultUser: MyUser = { ...profileUser, country: "Казахстан" };
 
 export function ProfileView() {
+  const { ready, posts, profile: user, avatar, error } = useLocalData();
+  const moderation = useModeration();
   const [unlocking, setUnlocking] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [avatarDraft, setAvatarDraft] = useState<string | null>(null);
+  const [readingAvatar, setReadingAvatar] = useState(false);
+  const avatarRequest = useRef(0);
+
   useEffect(() => {
     const open = (event: KeyboardEvent) => {
       if (event.altKey && event.shiftKey && event.code === "KeyA") {
@@ -24,198 +36,99 @@ export function ProfileView() {
       }
     };
     window.addEventListener("keydown", open);
-    return () => window.removeEventListener("keydown", open);
-  }, []);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
-  const [myPosts, setMyPosts] = useState<MyPost[]>(initialProfilePosts);
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [user, setUser] = useState<MyUser>(defaultUser);
-  const [editingProfile, setEditingProfile] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-
-  const { role, removed, blocked } = useModeration();
-  const isAdmin = role === "admin";
-  const isBlocked = !isAdmin && blocked.includes(user.username);
-
-  useEffect(() => {
-    try {
-      const savedAvatar = localStorage.getItem("osek-avatar");
-      if (savedAvatar) setAvatar(savedAvatar);
-
-      const savedProfile = localStorage.getItem("osek-profile");
-      if (savedProfile) setUser((u) => ({ ...u, ...JSON.parse(savedProfile) }));
-
-      const savedPosts = localStorage.getItem("osek-posts");
-      if (savedPosts) {
-        const parsed = JSON.parse(savedPosts);
-        if (Array.isArray(parsed)) setMyPosts(parsed);
-      }
-    } catch {}
-    setHydrated(true);
+    return () => { window.removeEventListener("keydown", open); avatarRequest.current += 1; };
   }, []);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem("osek-posts", JSON.stringify(myPosts));
-    } catch {}
-  }, [myPosts, hydrated]);
+  const isAdmin = moderation.role === "admin";
+  const isBlocked = moderation.blocked.includes(user.username) || moderation.blocked.includes(user.name);
+
+  function persistAvatar(value: string) {
+    if (!saveLocalAvatar(value)) { setAvatarDraft(value); return; }
+    setAvatarDraft(null);
+    setAvatarError("");
+  }
 
   function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
+    const request = ++avatarRequest.current;
+    setAvatarError("");
+    setReadingAvatar(false);
+    if (!file.type.startsWith("image/")) { setAvatarError("Выберите изображение для фото профиля."); return; }
+    setReadingAvatar(true);
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      setAvatar(result);
-      try {
-        localStorage.setItem("osek-avatar", result);
-      } catch {}
+      if (request !== avatarRequest.current) return;
+      setReadingAvatar(false);
+      if (typeof reader.result === "string") persistAvatar(reader.result);
+      else setAvatarError("Не удалось прочитать фото. Попробуйте ещё раз.");
+    };
+    reader.onerror = () => {
+      if (request !== avatarRequest.current) return;
+      setReadingAvatar(false);
+      setAvatarError("Не удалось прочитать фото. Попробуйте ещё раз.");
     };
     reader.readAsDataURL(file);
   }
 
   function saveProfile(form: ProfileForm) {
-    setUser((u) => ({ ...u, ...form }));
-    try {
-      localStorage.setItem("osek-profile", JSON.stringify(form));
-    } catch {}
+    return saveLocalProfile(form);
   }
 
   function addPost(text: string, image?: string) {
-    if (isBlocked) return;
-    const post = {
-      id: Date.now(),
-      text,
-      image,
-      likes: 0,
-      liked: false,
-      saved: false,
-      comments: 0,
-      minutes: 0,
-      commentList: [],
-    } as MyPost;
-    setMyPosts((previous) => [post, ...previous]);
-    setActiveTab("posts");
+    if (isBlocked) return false;
+    const saved = createLocalPost({ text, image, isAnonymous: false, city: user.city });
+    if (saved) setActiveTab("posts");
+    return saved;
   }
 
-  function toggleLike(id: number) {
-    setMyPosts((previous) => previous.map((post) => (
-      post.id === id ? { ...post, liked: !post.liked, likes: post.likes + (post.liked ? -1 : 1) } : post
-    )));
-  }
-
-  function toggleSave(id: number) {
-    setMyPosts((previous) => previous.map((post) => (
-      post.id === id ? { ...post, saved: !post.saved } : post
-    )));
-  }
-
-  function deletePost(id: number) {
-    setMyPosts((previous) => previous.filter((post) => post.id !== id));
-  }
-
-  function editPost(id: number, text: string) {
-    setMyPosts((previous) => previous.map((post) => (post.id === id ? { ...post, text } : post)));
-  }
-
-  function addComment(id: number, text: string) {
-    setMyPosts((previous) => previous.map((post) => (
-      post.id === id
-        ? { ...post, comments: post.comments + 1, commentList: [...(post.commentList ?? []), text] }
-        : post
-    )));
-  }
-
-  function deleteComment(id: number, index: number) {
-    setMyPosts((previous) => previous.map((post) => (
-      post.id === id
-        ? {
-            ...post,
-            comments: Math.max(0, post.comments - 1),
-            commentList: (post.commentList ?? []).filter((_, i) => i !== index),
-          }
-        : post
-    )));
-  }
-
-  // посты, удалённые модератором, не показываем
-  const ownPosts = myPosts.filter((post) => !removed.includes(post.id));
-
-  const visiblePosts = ownPosts.filter((post) => {
+  const availablePosts = posts.filter((post) => (
+    !moderation.removed.includes(post.id) &&
+    !(post.named && moderation.blocked.includes(post.author)) &&
+    !(post.isOwn && isBlocked)
+  ));
+  const ownPosts = availablePosts.filter((post) => post.isOwn);
+  const visiblePosts = availablePosts.filter((post) => {
     if (activeTab === "likes") return post.liked;
     if (activeTab === "saved") return post.saved;
-    if (activeTab === "comments") return false;
-    return true;
+    if (activeTab === "comments") return post.myCommentIndexes.length > 0;
+    return post.isOwn;
   });
-
   const stats = {
     posts: ownPosts.length,
-    likes: ownPosts.reduce((sum, post) => sum + post.likes, 0),
-    comments: ownPosts.reduce((sum, post) => sum + post.comments, 0),
-    saved: ownPosts.filter((post) => post.saved).length,
+    likes: availablePosts.filter((post) => post.liked).length,
+    comments: availablePosts.reduce((sum, post) => sum + post.myCommentIndexes.length, 0),
+    saved: availablePosts.filter((post) => post.saved).length,
   };
 
   return (
     <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
       <BackHeader prefix="pf" />
-      <ProfileHeader
-        user={user}
-        avatar={avatar}
-        onAvatarChange={handleAvatar}
-        stats={stats}
-        onEdit={() => setEditingProfile(true)}
-        isAdmin={isAdmin}
-      />
-      <ProfileTabs activeTab={activeTab} onChange={setActiveTab} />
-
-      {activeTab === "posts" && (
-        isBlocked ? (
-          <p className="mb-5 rounded-[var(--cards-profile-radius)] border-solid border-coral bg-peach px-5 py-4 text-coral-deep [border-width:var(--borders-thin)]">
-            Ваш аккаунт заблокирован модератором: публиковать новые посты нельзя.
-          </p>
-        ) : (
-          <ProfilePostComposer onPublish={addPost} />
-        )
+      {!ready || !moderation.ready ? <p role="status" className="py-[50px] text-center text-muted">Загружаем профиль…</p> : (
+        <>
+          <ProfileHeader user={user} avatar={avatar} onAvatarChange={handleAvatar} stats={stats} onEdit={() => setEditingProfile(true)} isAdmin={isAdmin} />
+          {error && <p role="alert" className="mt-4 rounded-xl bg-peach p-4 text-coral-deep">{error}</p>}
+          {avatarError && <p role="alert" className="mt-3 text-coral-deep">{avatarError}</p>}
+          {readingAvatar && <p role="status" className="mt-3 text-muted">Читаем фото…</p>}
+          {avatarDraft && <button type="button" onClick={() => persistAvatar(avatarDraft)} className="mt-3 cursor-pointer text-coral-deep underline">Повторить сохранение выбранного фото</button>}
+          <ProfileTabs activeTab={activeTab} onChange={setActiveTab} />
+          {activeTab === "posts" && (isBlocked ? (
+            <p className="mb-5 rounded-[var(--cards-profile-radius)] border-solid border-coral bg-peach px-5 py-4 text-coral-deep [border-width:var(--borders-thin)]">Ваш аккаунт заблокирован модератором: публиковать новые посты нельзя.</p>
+          ) : <ProfilePostComposer onPublish={addPost} />)}
+          <section className="grid [gap:var(--profile-posts-gap)]" aria-label="Публикации">
+            {visiblePosts.length === 0 ? <p className="py-[50px] text-center text-muted">{activeTab === "comments" ? "Здесь появятся публикации с вашими комментариями." : "Здесь пока ничего нет."}</p> : visiblePosts.map((post) => post.isOwn ? (
+              <ProfilePostCard
+                key={post.id} post={post} onLike={toggleLocalLike} onSave={toggleLocalSaved}
+                onDelete={deleteLocalPost} onEdit={editLocalPost}
+                onAddComment={addLocalComment} onDeleteComment={deleteLocalComment}
+              />
+            ) : <PostCard key={post.id} post={post} variant={post.image ? "photo" : "short"} />)}
+          </section>
+          {editingProfile && <EditProfileModal profile={user} onSave={saveProfile} onClose={() => setEditingProfile(false)} error={error} />}
+        </>
       )}
-
-      <section className="grid [gap:var(--profile-posts-gap)]" aria-label="Публикации">
-        {activeTab === "comments" ? (
-          <p className="py-[50px] text-center text-muted">История комментариев пока недоступна.</p>
-        ) : visiblePosts.length === 0 ? (
-          <p className="py-[50px] text-center text-muted">Здесь пока ничего нет.</p>
-        ) : (
-          visiblePosts.map((post) => (
-            <ProfilePostCard
-              key={post.id}
-              post={post}
-              user={user}
-              avatar={avatar}
-              onLike={toggleLike}
-              onSave={toggleSave}
-              onDelete={deletePost}
-              onEdit={editPost}
-              onAddComment={addComment}
-              onDeleteComment={deleteComment}
-            />
-          ))
-        )}
-      </section>
-
       {unlocking && <AdminUnlockDialog onClose={() => setUnlocking(false)} />}
-      {editingProfile && (
-        <EditProfileModal
-          profile={{
-            name: user.name,
-            username: user.username,
-            city: user.city,
-            country: user.country,
-            bio: user.bio,
-          }}
-          onSave={saveProfile}
-          onClose={() => setEditingProfile(false)}
-        />
-      )}
     </main>
   );
 }

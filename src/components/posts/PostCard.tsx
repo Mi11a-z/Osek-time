@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { Post } from "../../data/posts";
+import { deleteLocalPost, useLocalData, type LocalPost } from "../../data/local-store";
 import { usePostInteractions } from "../../usePostInteractions";
 import { Comments } from "../Comments";
 import { PostAuthor } from "./PostAuthor";
@@ -14,11 +14,11 @@ import { ReportDialog } from "./ReportDialog";
 import { blockUser, removePost, useModeration } from "../../moderation";
 
 type PostCardProps = {
-  post: Post;
+  post: LocalPost;
   variant: "featured" | "photo" | "short";
 };
 
-const linkClass = "text-inherit no-underline focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4";
+const linkClass = "whitespace-pre-wrap [overflow-wrap:anywhere] text-inherit no-underline focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4";
 const featuredCardClass = "flex flex-col [padding:var(--cards-featured-padding)] [border:var(--borders-featured)_solid_var(--ink)] max-[1240px]:[padding:var(--cards-featured-padding-at1240)] max-[800px]:[padding:var(--cards-featured-padding-at800)] max-[480px]:[padding:var(--cards-featured-padding-at480)]";
 const compactCardClass = "[border:var(--borders-thin)_solid_var(--colors-card-border)] [padding:var(--cards-compact-padding)] max-[1000px]:[padding:var(--cards-compact-padding-at1000)] max-[800px]:[padding:var(--cards-compact-padding-at800)] max-[480px]:[padding:var(--cards-compact-padding-at480)]";
 const featuredTagClass = "mt-[18px] py-1 [font-size:var(--font-sizes-body-large)] max-[480px]:mt-3.5 max-[480px]:[font-size:var(--font-sizes-input)]";
@@ -27,14 +27,23 @@ const compactTagClass = "mt-2 py-0.5 [font-size:var(--font-sizes-body)]";
 export function PostCard({ post, variant }: PostCardProps) {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
-  const interactions = usePostInteractions(post.likes, post.comments);
+  const interactions = usePostInteractions(post.id);
+  const { profile, error } = useLocalData();
   const { role, removed, blocked } = useModeration();
   const [reporting, setReporting] = useState(false);
+  const [actionFailed, setActionFailed] = useState(false);
   const isAdmin = role === "admin";
-  const authorId = post.named ? post.author : null;
+  // Сохраняем прежнюю связь собственных публикаций с жалобами и блокировками.
+  const authorId = post.named ? (post.isOwn ? profile.name : post.author) : null;
 
   // удалённые посты и посты заблокированных авторов скрываем из ленты
-  if (removed.includes(post.id) || (authorId !== null && blocked.includes(authorId))) return null;
+  if (removed.includes(post.id) || (authorId !== null && blocked.includes(authorId)) || (post.isOwn && (blocked.includes(profile.username) || blocked.includes(profile.name)))) return null;
+
+  function saveAction(action: () => boolean): boolean {
+    const saved = action();
+    setActionFailed(!saved);
+    return saved;
+  }
 
   const href = `/post/${post.id}`;
   const featured = variant === "featured";
@@ -51,6 +60,7 @@ export function PostCard({ post, variant }: PostCardProps) {
         author={post.author}
         avatar={post.avatar}
         named={post.named}
+        isOwn={post.isOwn}
         city={post.city}
         minutes={post.minutes}
         variant={featured ? "featured" : "compact"}
@@ -58,8 +68,8 @@ export function PostCard({ post, variant }: PostCardProps) {
           <PostMenu
             variant="header"
             onReport={() => setReporting(true)}
-            onDelete={isAdmin ? () => removePost(post.id) : undefined}
-            deleteLabel="Удалить пост (админ)"
+            onDelete={post.isOwn ? () => saveAction(() => deleteLocalPost(post.id)) : isAdmin ? () => removePost(post.id) : undefined}
+            deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"}
             onBlockAuthor={isAdmin && authorId ? () => blockUser(authorId) : undefined}
           />
         }
@@ -99,13 +109,14 @@ export function PostCard({ post, variant }: PostCardProps) {
           isLiked={interactions.isLiked}
           isSaved={interactions.isSaved}
           commentCount={interactions.comments.length}
-          onLike={interactions.toggleLike}
-          onSave={interactions.toggleSave}
+          onLike={() => saveAction(interactions.toggleLike)}
+          onSave={() => saveAction(interactions.toggleSave)}
           onToggleComments={() => setShowComments((previous) => !previous)}
           commentsOpen={showComments}
           showMore={false}
           separated={featured}
         />
+        {actionFailed && error && <p role="alert" className="mt-3 rounded-xl bg-peach p-3 text-coral-deep">{error}</p>}
         {reporting && (
           <ReportDialog
             post={{ postId: post.id, postText: post.text, postAuthor: post.author, authorId }}
@@ -113,7 +124,7 @@ export function PostCard({ post, variant }: PostCardProps) {
           />
         )}
         <div hidden={!showComments}>
-          <Comments comments={interactions.comments} onAdd={interactions.addComment} onDelete={interactions.deleteComment} variant="feed" />
+          <Comments comments={interactions.comments} onAdd={(text) => saveAction(() => interactions.addComment(text))} onDelete={(index) => saveAction(() => interactions.deleteComment(index))} variant="feed" />
         </div>
       </div>
     </article>

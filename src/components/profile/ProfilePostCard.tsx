@@ -1,22 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Comments } from "../Comments";
 import { PostActions } from "../posts/PostActions";
 import { PostMenu } from "./PostMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
-import type { MyPost, MyUser } from "./types";
+import type { MyPost } from "./types";
+import type { LocalComment } from "../../data/local-store";
 
 type ProfilePostCardProps = {
   post: MyPost;
-  user: MyUser;
-  avatar: string | null;
-  onLike: (id: number) => void;
-  onSave: (id: number) => void;
-  onDelete: (id: number) => void;
-  onEdit: (id: number, text: string) => void;
-  onAddComment: (id: number, text: string) => void;
-  onDeleteComment: (id: number, index: number) => void;
+  onLike: (id: number) => boolean;
+  onSave: (id: number) => boolean;
+  onDelete: (id: number) => boolean;
+  onEdit: (id: number, text: string) => boolean;
+  onAddComment: (id: number, text: string) => boolean;
+  onDeleteComment: (id: number, index: number, expectedComments: readonly LocalComment[]) => boolean;
 };
 
 function formatTime(minutes: number) {
@@ -26,8 +26,6 @@ function formatTime(minutes: number) {
 
 export function ProfilePostCard({
   post,
-  user,
-  avatar,
   onLike,
   onSave,
   onDelete,
@@ -49,20 +47,19 @@ export function ProfilePostCard({
 
   function saveEdit() {
     if (!canSave) return;
-    onEdit(post.id, draft.trim());
-    setEditing(false);
+    if (onEdit(post.id, draft.trim())) setEditing(false);
   }
 
   return (
     <article className="border-solid border-line bg-surface [padding:var(--cards-profile-padding)] [border-width:var(--borders-thin)] [border-radius:var(--cards-profile-radius)]">
       <header className="mb-3.5 flex items-center gap-3.5">
-        <ProfileAvatar avatar={avatar} name={user.name} variant="post" />
+        <ProfileAvatar avatar={post.named ? post.avatar ?? null : null} name={post.author} variant="post" />
         <div>
-          <span className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]">{user.name}</span>
-          <span className="block text-muted [font-size:var(--font-sizes-meta)]">{user.city} · {formatTime(post.minutes)}</span>
+          <span className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]">{post.isOwn && post.named ? "@" : ""}{post.author}</span>
+          <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {formatTime(post.minutes)}</span>
         </div>
       </header>
-      <span className="inline-block rounded-[var(--radii-tag)] bg-peach px-3 py-1.5 text-coral-deep [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]"># {user.city}</span>
+      <span className="inline-block rounded-[var(--radii-tag)] bg-peach px-3 py-1.5 text-coral-deep [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]"># {post.city}</span>
 
       {editing ? (
         <div className="mt-3.5">
@@ -83,19 +80,21 @@ export function ProfilePostCard({
           </div>
         </div>
       ) : (
-        post.text && <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)] [overflow-wrap:anywhere]">{post.text}</p>
+        post.text && <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)] [overflow-wrap:anywhere]"><Link href={`/post/${post.id}`} className="text-inherit no-underline">{post.text}</Link></p>
       )}
 
       {post.image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={post.image} alt="" className="mt-3.5 block max-h-[480px] w-full rounded-xl object-cover" />
+        <Link href={`/post/${post.id}`} aria-label="Открыть публикацию">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={post.image} alt={post.imageAlt ?? ""} className="mt-3.5 block max-h-[480px] w-full rounded-xl object-cover" />
+        </Link>
       )}
 
       <PostActions
         likes={post.likes}
         isLiked={post.liked}
         isSaved={post.saved}
-        commentCount={post.comments}
+        commentCount={post.comments.length}
         onLike={() => onLike(post.id)}
         onSave={() => onSave(post.id)}
         onToggleComments={() => setShowComments((v) => !v)}
@@ -106,9 +105,9 @@ export function ProfilePostCard({
 
       <div hidden={!showComments}>
         <Comments
-          comments={post.commentList ?? []}
+          comments={post.comments}
           onAdd={(text) => onAddComment(post.id, text)}
-          onDelete={(index) => onDeleteComment(post.id, index)}
+          onDelete={(index) => onDeleteComment(post.id, index, post.comments)}
           variant="feed"
         />
       </div>

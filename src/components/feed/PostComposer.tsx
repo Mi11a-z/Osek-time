@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Icon } from "../ui/Icon";
+import { createLocalPost, useLocalData } from "../../data/local-store";
+import { useModeration } from "../../moderation";
 
 const composerClass = `grid items-center [grid-template-columns:var(--composer-columns)] [gap:var(--composer-gap)]
   [padding:var(--composer-padding)] [border:var(--borders-strong)_solid_var(--ink)] [border-radius:var(--radii-post)]
@@ -13,7 +15,7 @@ const pencilClass = `pointer-events-none absolute top-[25px] left-6 size-[33px]
   max-[1240px]:left-[19px] max-[1240px]:w-7 max-[1000px]:top-[23px]
   max-[480px]:left-[13px] max-[480px]:top-[21px] max-[480px]:size-6`;
 
-const fieldClass = `block w-full [height:var(--composer-field-height)] [padding:var(--composer-field-padding)] resize-none overflow-hidden
+const fieldClass = `block w-full [height:var(--composer-field-height)] [padding:var(--composer-field-padding)] resize-none overflow-y-auto
   [border:var(--borders-thin)_solid_var(--colors-input-border)] [border-radius:var(--radii-composer)]
   [background:var(--colors-input-surface)] text-ink [font-size:var(--composer-text-size)] leading-[1.4]
   placeholder:text-muted placeholder:opacity-100
@@ -45,17 +47,21 @@ const privacyClass = `flex items-center gap-3 col-span-full text-muted [font-siz
   max-[1240px]:[font-size:var(--font-sizes-caption)] max-[1240px]:gap-2 max-[1000px]:[font-size:var(--font-sizes-small)]
   max-[480px]:items-start max-[480px]:[font-size:var(--font-sizes-micro)]`;
 
-export function PostComposer() {
+export function PostComposer({ city, onPublished }: { city?: string; onPublished?: () => void }) {
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [postText, setPostText] = useState("");
+  const [publishFailed, setPublishFailed] = useState(false);
+  const { ready, profile, error } = useLocalData();
+  const { ready: moderationReady, blocked } = useModeration();
+  const isBlocked = blocked.includes(profile.username) || blocked.includes(profile.name);
+  const canPublish = ready && moderationReady && !isBlocked && postText.trim().length > 0 && postText.length <= 5000;
 
   function handlePublish() {
-    if (!postText.trim()) {
-      alert("Напишите текст публикации!");
-      return;
-    }
-    alert(`Пост опубликован (${isAnonymous ? "Анонимно" : "От вашего имени"})!`);
+    if (!canPublish) return;
+    if (!createLocalPost({ text: postText.trim(), isAnonymous, city: city ?? profile.city })) { setPublishFailed(true); return; }
+    setPublishFailed(false);
     setPostText("");
+    onPublished?.();
   }
 
   return (
@@ -65,6 +71,8 @@ export function PostComposer() {
         <textarea
           className={fieldClass}
           rows={1}
+          maxLength={5000}
+          disabled={!ready || isBlocked}
           value={postText}
           onChange={(event) => setPostText(event.target.value)}
           placeholder="Что обсуждают в твоём городе?"
@@ -86,14 +94,16 @@ export function PostComposer() {
             <span className={`${thumbClass} ${isAnonymous ? "[transform:translateX(calc(var(--switch-width)_-_var(--switch-padding)_*_2_-_var(--switch-thumb-size)))]" : "[transform:translateX(0)]"}`} />
           </span>
         </button>
-        <button type="button" onClick={handlePublish} className={publishClass}>
+        <button type="button" onClick={handlePublish} disabled={!canPublish} className={`${publishClass} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50`}>
           Опубликовать
         </button>
         <p className={privacyClass}>
           <Icon name="lock" className="size-5 [color:var(--colors-lock)] max-[480px]:size-[17px]" />
-          <span>Автор скрыт от читателей, но виден модераторам.</span>
+          <span>{isAnonymous ? "Автор скрыт от читателей, но виден модераторам." : "Публикация появится от вашего имени."}</span>
         </p>
       </div>
+      {isBlocked && <p role="status" className="col-span-full text-coral-deep">Ваш аккаунт заблокирован: публиковать новые посты нельзя.</p>}
+      {publishFailed && <p role="alert" className="col-span-full text-coral-deep">{error ?? "Не удалось сохранить публикацию. Текст остался в форме — попробуйте ещё раз."}</p>}
     </section>
   );
 }

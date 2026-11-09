@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 type ProfilePostComposerProps = {
-  onPublish: (text: string, image?: string) => void;
+  onPublish: (text: string, image?: string) => boolean;
 };
 
 // Сжимаем фото, чтобы оно поместилось в localStorage
@@ -36,9 +36,14 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | undefined>();
   const [error, setError] = useState("");
+  const [readingImage, setReadingImage] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const imageRequest = useRef(0);
+  useEffect(() => () => { imageRequest.current += 1; }, []);
 
   function reset() {
+    imageRequest.current += 1;
+    setReadingImage(false);
     setText("");
     setImage(undefined);
     setError("");
@@ -49,20 +54,22 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    const request = ++imageRequest.current;
+    setReadingImage(true);
+    setError("");
     try {
-      setImage(await readImage(file));
-      setError("");
+      const nextImage = await readImage(file);
+      if (request === imageRequest.current) setImage(nextImage);
     } catch {
-      setError("Не удалось загрузить фото. Попробуйте другое.");
-    }
+      if (request === imageRequest.current) setError("Не удалось загрузить фото. Попробуйте другое.");
+    } finally { if (request === imageRequest.current) setReadingImage(false); }
   }
 
-  const canPublish = text.trim().length > 0 || Boolean(image);
+  const canPublish = !readingImage && (text.trim().length > 0 || Boolean(image));
 
   function publish() {
     if (!canPublish) return;
-    onPublish(text.trim(), image);
-    reset();
+    if (onPublish(text.trim(), image)) reset();
   }
 
   if (!open) {
@@ -86,7 +93,7 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
-        maxLength={500}
+        maxLength={5000}
         autoFocus
         placeholder="О чём хотите рассказать?"
         aria-label="Текст публикации"
@@ -99,7 +106,7 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
           <img src={image} alt="Предпросмотр фото" className="block max-h-[320px] w-full rounded-xl object-cover" />
           <button
             type="button"
-            onClick={() => setImage(undefined)}
+            onClick={() => { imageRequest.current += 1; setReadingImage(false); setImage(undefined); }}
             aria-label="Убрать фото"
             className="absolute right-2 top-2 grid size-8 cursor-pointer place-items-center rounded-[var(--radii-round)] border-0 bg-ink [color:var(--colors-white)]"
           >
@@ -108,7 +115,7 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
         </div>
       )}
 
-      {error && <p className="mt-2 text-coral-deep [font-size:var(--font-sizes-meta)]">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-coral-deep [font-size:var(--font-sizes-meta)]">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
@@ -116,11 +123,11 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
           onClick={() => fileInput.current?.click()}
           className="cursor-pointer rounded-[var(--radii-pill)] border-solid border-line bg-transparent px-4 py-2 [border-width:var(--borders-thin)] hover:border-coral"
         >
-          {image ? "Заменить фото" : "Добавить фото"}
+          {readingImage ? "Читаем фото…" : image ? "Заменить фото" : "Добавить фото"}
         </button>
         <input ref={fileInput} type="file" accept="image/*" onChange={handleFile} hidden />
 
-        <span className="ml-auto text-muted [font-size:var(--font-sizes-meta)]">{text.length}/500</span>
+        <span className="ml-auto text-muted [font-size:var(--font-sizes-meta)]">{text.length}/5000</span>
         <button
           type="button"
           onClick={reset}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { getLocalSnapshot } from "./data/local-store";
 
 // ---------- типы ----------
 
@@ -133,14 +134,7 @@ export function setRole(role: Role) {
 // ---------- жалобы ----------
 
 function currentReporter(): string {
-  try {
-    const saved = localStorage.getItem("osek-profile");
-    if (saved) {
-      const username = JSON.parse(saved)?.username;
-      if (typeof username === "string" && username) return username;
-    }
-  } catch {}
-  return "гость";
+  return getLocalSnapshot().profile.username || "гость";
 }
 
 export function addReport(input: NewReport) {

@@ -12,8 +12,9 @@ export type ProfileForm = {
 
 type EditProfileModalProps = {
   profile: ProfileForm;
-  onSave: (profile: ProfileForm) => void;
+  onSave: (profile: ProfileForm) => boolean | void;
   onClose: () => void;
+  error?: string | null;
 };
 
 const inputClass =
@@ -21,7 +22,7 @@ const inputClass =
 
 const usernamePattern = /^[a-z0-9_.]{3,20}$/i;
 
-export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalProps) {
+export function EditProfileModal({ profile, onSave, onClose, error }: EditProfileModalProps) {
   const [form, setForm] = useState<ProfileForm>(profile);
 
   useEffect(() => {
@@ -47,14 +48,14 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
 
   function submit() {
     if (!valid) return;
-    onSave({
+    const saved = onSave({
       name: form.name.trim(),
       username: form.username.trim(),
       city: form.city.trim(),
       country: form.country.trim(),
       bio: form.bio.trim(),
     });
-    onClose();
+    if (saved !== false) onClose();
   }
 
   return (
@@ -103,6 +104,7 @@ export function EditProfileModal({ profile, onSave, onClose }: EditProfileModalP
         </label>
         <p className="mt-1 text-right text-muted [font-size:var(--font-sizes-meta)]">{form.bio.length}/200</p>
 
+        {error && <p role="alert" className="mt-3 text-coral-deep">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"

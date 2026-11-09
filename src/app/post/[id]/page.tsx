@@ -1,23 +1,22 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { PostDetail } from "../../../components/posts/PostDetail";
 import { posts } from "../../../data/posts";
+import LoadingPost from "./loading";
 
+type PostPageProps = { params: Promise<{ id: string }> };
+
+// Эти примеры нужны для проверки и предварительной сборки Cache Components.
+// Новые локальные ID также доступны: поиск записи выполняется в браузере.
 export function generateStaticParams() {
   return posts.map((post) => ({ id: String(post.id) }));
 }
 
-export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+async function ResolvedPost({ params }: PostPageProps) {
   const { id } = await params;
-  const post = posts.find((item) => item.id === Number(id));
+  const numericId = /^[1-9]\d*$/.test(id) && Number.isSafeInteger(Number(id)) ? Number(id) : 0;
+  return <PostDetail key={id} postId={numericId} />;
+}
 
-  if (!post) {
-    return (
-      <main className="mx-auto [max-width:var(--layout-post-max-width)] [padding:var(--layout-post-padding)]">
-        <p className="py-[30px] text-center text-muted">Пост не найден.</p>
-        <Link href="/" className="inline-block rounded-[var(--radii-pill)] border-solid border-line px-4 py-2.5 text-ink no-underline [border-width:var(--borders-thin)] [font-weight:var(--font-weights-bold)] hover:border-coral hover:text-coral-deep">← Вернуться в ленту</Link>
-      </main>
-    );
-  }
-
-  return <PostDetail key={post.id} post={post} />;
+export default function PostPage({ params }: PostPageProps) {
+  return <Suspense fallback={<LoadingPost />}><ResolvedPost params={params} /></Suspense>;
 }
