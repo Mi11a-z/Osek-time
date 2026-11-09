@@ -10,6 +10,6 @@ export function usePostInteractions(postId: number) {
     likes: post?.likes ?? 0, isLiked: post?.liked ?? false, isSaved: post?.saved ?? false,
     comments, error: snapshot.error,
     toggleLike: () => toggleLocalLike(postId), toggleSave: () => toggleLocalSaved(postId),
-    addComment: (text: string) => addLocalComment(postId, text), deleteComment: (index: number) => deleteLocalComment(postId, index, comments),
+    addComment: (text: string, isAnonymous: boolean) => addLocalComment(postId, text, isAnonymous), deleteComment: (index: number) => deleteLocalComment(postId, index, comments),
   };
 }

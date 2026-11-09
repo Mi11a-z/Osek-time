@@ -6,6 +6,7 @@ import { Comments } from "../Comments";
 import { PostActions } from "../posts/PostActions";
 import { PostMenu } from "./PostMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { PostAuthorLabel } from "../posts/PostAuthorLabel";
 import type { MyPost } from "./types";
 import type { LocalComment } from "../../data/local-store";
 
@@ -15,7 +16,7 @@ type ProfilePostCardProps = {
   onSave: (id: number) => boolean;
   onDelete: (id: number) => boolean;
   onEdit: (id: number, text: string) => boolean;
-  onAddComment: (id: number, text: string) => boolean;
+  onAddComment: (id: number, text: string, isAnonymous: boolean) => boolean;
   onDeleteComment: (id: number, index: number, expectedComments: readonly LocalComment[]) => boolean;
 };
 
@@ -55,7 +56,7 @@ export function ProfilePostCard({
       <header className="mb-3.5 flex items-center gap-3.5">
         <ProfileAvatar avatar={post.named ? post.avatar ?? null : null} name={post.author} variant="post" />
         <div>
-          <span className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]">{post.isOwn && post.named ? "@" : ""}{post.author}</span>
+          <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]" />
           <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {formatTime(post.minutes)}</span>
         </div>
       </header>
@@ -106,7 +107,7 @@ export function ProfilePostCard({
       <div hidden={!showComments}>
         <Comments
           comments={post.comments}
-          onAdd={(text) => onAddComment(post.id, text)}
+          onAdd={(text, isAnonymous) => onAddComment(post.id, text, isAnonymous)}
           onDelete={(index) => onDeleteComment(post.id, index, post.comments)}
           variant="feed"
         />

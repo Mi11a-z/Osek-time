@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import { useLocalData, type LocalComment } from "../data/local-store";
+import { useModeration } from "../moderation";
 
 type CommentsProps = {
   comments: LocalComment[];
-  onAdd: (text: string) => boolean | void;
+  onAdd: (text: string, isAnonymous: boolean) => boolean | void;
   onDelete: (index: number) => void;
   variant: "feed" | "detail";
   error?: string | null;
@@ -40,7 +41,10 @@ const styles = {
 
 export function Comments({ comments, onAdd, onDelete, variant, error }: CommentsProps) {
   const [input, setInput] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const { profile, ready } = useLocalData();
+  const moderation = useModeration();
+  const isAdmin = moderation.ready && moderation.role === "admin";
   const canComment = ready && /^[a-z0-9_.]{3,20}$/i.test(profile.username);
   const isDetail = variant === "detail";
   const classes = styles[variant];
@@ -48,13 +52,27 @@ export function Comments({ comments, onAdd, onDelete, variant, error }: Comments
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canComment || !input.trim()) return;
-    if (onAdd(input.trim()) !== false) setInput("");
+    if (onAdd(input.trim(), isAnonymous) !== false) setInput("");
   }
 
   const form = (
     <div>
+      <button
+        type="button"
+        role="switch"
+        aria-label="Комментировать анонимно"
+        aria-checked={isAnonymous}
+        disabled={!canComment}
+        onClick={() => setIsAnonymous((value) => !value)}
+        className="mb-2 flex cursor-pointer items-center [gap:var(--switch-label-gap)] [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span>Анонимно</span>
+        <span aria-hidden="true" className={`flex shrink-0 items-center [width:var(--switch-width)] [height:var(--switch-height)] [padding:var(--switch-padding)] [border-radius:var(--radii-panel)] [transition:background-color_var(--motion-transition-duration)_ease] motion-reduce:transition-none ${isAnonymous ? "bg-coral" : "[background:var(--colors-switch-off)]"}`}>
+          <span className={`[width:var(--switch-thumb-size)] [height:var(--switch-thumb-size)] [border-radius:var(--radii-round)] [background:var(--colors-switch-thumb)] [box-shadow:var(--shadows-switch)] [transition:transform_var(--motion-transition-duration)_ease] motion-reduce:transition-none ${isAnonymous ? "[transform:translateX(calc(var(--switch-width)_-_var(--switch-padding)_*_2_-_var(--switch-thumb-size)))]" : "[transform:translateX(0)]"}`} />
+        </span>
+      </button>
       <p className="mb-2 text-muted [font-size:var(--font-sizes-meta)]">
-        {canComment ? <>Комментарий от <strong>@{profile.username}</strong></> : <>Чтобы написать комментарий, укажите ник в <a href="/profile" className="underline">профиле</a>.</>}
+        {canComment ? isAnonymous ? "Комментарий будет опубликован анонимно." : <>Комментарий от <strong>@{profile.username}</strong></> : <>Чтобы написать комментарий, укажите ник в <a href="/profile" className="underline">профиле</a>.</>}
       </p>
       <form onSubmit={handleSubmit} className={classes.form}>
         <input
@@ -78,7 +96,12 @@ export function Comments({ comments, onAdd, onDelete, variant, error }: Comments
     <ul className={classes.list}>
       {comments.map((comment, index) => (
         <li key={comment.id} className={classes.item}>
-          <span className={classes.author}>@{comment.username}:</span>
+          <span className={`${classes.author} inline-block align-top`}>
+            {comment.isAnonymous ? <>
+              Аноним
+              {isAdmin && <span className="block text-muted [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-medium)]">@{comment.username}</span>}
+            </> : <>@{comment.username}:</>}
+          </span>
           <span className={classes.text}>{comment.text}</span>
           <button type="button" className={classes.remove} onClick={() => onDelete(index)} aria-label={`Удалить комментарий: ${comment.text}`}>
             удалить

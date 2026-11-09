@@ -61,6 +61,7 @@ export function PostCard({ post, variant }: PostCardProps) {
         avatar={post.avatar}
         named={post.named}
         isOwn={post.isOwn}
+        username={post.authorUsername}
         city={post.city}
         minutes={post.minutes}
         variant={featured ? "featured" : "compact"}
@@ -124,7 +125,7 @@ export function PostCard({ post, variant }: PostCardProps) {
           />
         )}
         <div hidden={!showComments}>
-          <Comments comments={interactions.comments} onAdd={(text) => saveAction(() => interactions.addComment(text))} onDelete={(index) => saveAction(() => interactions.deleteComment(index))} variant="feed" />
+          <Comments comments={interactions.comments} onAdd={(text, isAnonymous) => saveAction(() => interactions.addComment(text, isAnonymous))} onDelete={(index) => saveAction(() => interactions.deleteComment(index))} variant="feed" />
         </div>
       </div>
     </article>

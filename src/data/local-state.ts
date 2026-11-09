@@ -1,8 +1,8 @@
 import { posts as feedPosts, type Post } from "./posts";
 import { initialProfilePosts, profileUser, type ProfileUser } from "./profile";
 
-export type LocalComment = { id: string; text: string; username: string };
-export type LocalPost = Omit<Post, "comments"> & { comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
+export type LocalComment = { id: string; text: string; username: string; isAnonymous: boolean };
+export type LocalPost = Omit<Post, "comments"> & { authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
 export type LocalProfile = ProfileUser & { country: string };
 export type LocalSnapshot = { ready: boolean; posts: LocalPost[]; profile: LocalProfile; avatar: string | null; error: string | null };
 type LocalData = Pick<LocalSnapshot, "posts" | "profile" | "avatar">;
@@ -23,10 +23,11 @@ function strings(value: unknown): value is string[] { return Array.isArray(value
 function parse(raw: string): unknown { try { return JSON.parse(raw); } catch { throw invalid(); } }
 function username(value: unknown): value is string { return typeof value === "string" && /^[a-z0-9_.]{3,20}$/i.test(value); }
 
-function readComment(value: unknown): LocalComment {
+function readComment(value: unknown, version: 2 | 3 = 3): LocalComment {
   if (!record(value) || !string(value.id, 1, 100) || !/^[a-z0-9:_-]+$/i.test(value.id)
-    || !string(value.text, 1) || !value.text.trim() || !username(value.username)) throw invalid();
-  return { id: value.id, text: value.text, username: value.username };
+    || !string(value.text, 1) || !value.text.trim() || !username(value.username)
+    || (version === 3 && typeof value.isAnonymous !== "boolean")) throw invalid();
+  return { id: value.id, text: value.text, username: value.username, isAnonymous: version === 3 ? value.isAnonymous as boolean : false };
 }
 
 function migrateComments(postId: number, texts: string[], ownIndexes: number[], author: string, archive: string[] = []) {
@@ -35,7 +36,7 @@ function migrateComments(postId: number, texts: string[], ownIndexes: number[], 
   const known = new Set(ownIndexes);
   texts.forEach((text, index) => {
     if (known.has(index)) {
-      comments.push(readComment({ id: `legacy:${postId}:${index}`, text, username: author }));
+      comments.push(readComment({ id: `legacy:${postId}:${index}`, text, username: author, isAnonymous: false }));
     } else legacyAnonymousComments.push(text);
   });
   return { comments, legacyAnonymousComments, myCommentIndexes: comments.map((_, index) => index) };
@@ -67,7 +68,7 @@ function readProfile(value: unknown): LocalProfile {
   return { name: value.name, username: value.username, city: value.city, country: value.country, bio: value.bio };
 }
 
-function readPost(value: unknown, version: 1 | 2, author: string): LocalPost {
+function readPost(value: unknown, version: 1 | 2 | 3, author: string): LocalPost {
   if (!record(value) || !integer(value.id) || value.id === 0 || typeof value.named !== "boolean"
     || !string(value.author, 1, 1000) || !string(value.city, 1, 1000) || !integer(value.minutes)
     || !string(value.text) || (!value.text.trim() && !media(value.image)) || !integer(value.likes) || !Array.isArray(value.comments)
@@ -81,11 +82,12 @@ function readPost(value: unknown, version: 1 | 2, author: string): LocalPost {
   if (!strings(archive)) throw invalid();
   const commentData = version === 1
     ? migrateComments(value.id, rawComments as string[], indexes, author, archive)
-    : { comments: rawComments.map(readComment), legacyAnonymousComments: [...archive], myCommentIndexes: [...indexes] };
+    : { comments: rawComments.map((comment) => readComment(comment, version === 3 ? 3 : 2)), legacyAnonymousComments: [...archive], myCommentIndexes: [...indexes] };
+  if (value.authorUsername !== undefined && !username(value.authorUsername)) throw invalid();
   for (const field of ["avatar", "image"] as const) if (value[field] !== undefined && !media(value[field])) throw invalid();
   for (const field of ["question", "imageAlt"] as const) if (value[field] !== undefined && !string(value[field])) throw invalid();
   return {
-    id: value.id, named: value.named, author: value.author, city: value.city, minutes: value.minutes,
+    id: value.id, named: value.named, author: value.author, authorUsername: value.authorUsername as string | undefined, city: value.city, minutes: value.minutes,
     text: value.text, likes: value.likes, ...commentData, isOwn: value.isOwn, liked: value.liked, saved: value.saved,
     avatar: value.avatar as string | undefined, image: value.image as string | undefined,
     question: value.question as string | undefined, imageAlt: value.imageAlt as string | undefined,
@@ -95,12 +97,13 @@ function readPost(value: unknown, version: 1 | 2, author: string): LocalPost {
 function resolveOwnAuthors(data: LocalData): LocalData {
   return { ...data, posts: data.posts.map((post) => post.isOwn ? {
     ...post, author: post.named ? data.profile.username : "Аноним", avatar: post.named ? data.avatar ?? undefined : undefined,
+    authorUsername: username(data.profile.username) ? data.profile.username : undefined,
   } : post) };
 }
 
 function readCanonical(raw: string): LocalData {
   const data = parse(raw);
-  if (!record(data) || (data.version !== 1 && data.version !== 2) || !Array.isArray(data.posts) || !(data.avatar === null || media(data.avatar))) throw invalid();
+  if (!record(data) || (data.version !== 1 && data.version !== 2 && data.version !== 3) || !Array.isArray(data.posts) || !(data.avatar === null || media(data.avatar))) throw invalid();
   const profile = readProfile(data.profile);
   const version = data.version;
   const posts = data.posts.map((post) => readPost(post, version, profile.username));
@@ -145,7 +148,7 @@ function migrateLegacy(storage: Storage): LocalData {
     const comments = [...(old.commentList as string[] | undefined ?? [])];
     const anonymous = old.isAnonymous === true || old.named === false;
     posts.push({
-      id, text: old.text, named: !anonymous, author: anonymous ? "Аноним" : profile.username, city: profile.city,
+      id, text: old.text, named: !anonymous, author: anonymous ? "Аноним" : profile.username, authorUsername: profile.username, city: profile.city,
       minutes: old.minutes, likes: old.likes, liked: old.liked, saved: old.saved, isOwn: true,
       ...migrateComments(id, comments, comments.map((_, index) => index), profile.username), image: old.image as string | undefined,
     });
@@ -184,7 +187,7 @@ export function createLocalStore(getStorage: () => Storage) {
       // Own avatars are derived from the profile; storing the same base64 image
       // in every post would multiply localStorage usage unnecessarily.
       const posts = next.posts.map((post) => post.isOwn ? { ...post, avatar: undefined } : post);
-      storage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ version: 2, ...next, posts }));
+      storage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ version: 3, ...next, posts }));
       snapshot = { ...next, ready: true, error: null };
       success = true;
     } catch (error) {
@@ -219,7 +222,7 @@ export function createLocalStore(getStorage: () => Storage) {
         while (used.has(id)) id++;
         if (!Number.isSafeInteger(id)) throw new LocalDataError("Не удалось создать номер публикации. Повторите попытку.");
         const post: LocalPost = {
-          id, text, image: input.image, city, named: !input.isAnonymous, author: data.profile.username, minutes: 0,
+          id, text, image: input.image, city, named: !input.isAnonymous, author: data.profile.username, authorUsername: data.profile.username, minutes: 0,
           likes: 0, comments: [], legacyAnonymousComments: [], liked: false, saved: false, isOwn: true, myCommentIndexes: [],
         };
         return { ...data, posts: [post, ...data.posts] };
@@ -236,10 +239,11 @@ export function createLocalStore(getStorage: () => Storage) {
       });
     },
     editLocalPost(id: number, text: string) { return updatePost(id, (post) => { own(post); return { ...post, text: content(text, post.image !== undefined) }; }); },
-    addLocalComment(id: number, text: string) {
+    addLocalComment(id: number, text: string, isAnonymous = false) {
       return updatePost(id, (post, data) => {
+        if (typeof isAnonymous !== "boolean") throw new LocalDataError("Выберите режим публикации комментария.");
         if (!username(data.profile.username)) throw new LocalDataError("Укажите корректный ник аккаунта в профиле, чтобы оставить комментарий.");
-        const comment: LocalComment = { id: newCommentId(data), text: content(text), username: data.profile.username };
+        const comment: LocalComment = { id: newCommentId(data), text: content(text), username: data.profile.username, isAnonymous };
         return { ...post, comments: [...post.comments, comment], myCommentIndexes: [...post.myCommentIndexes, post.comments.length] };
       });
     },
@@ -247,7 +251,7 @@ export function createLocalStore(getStorage: () => Storage) {
       return updatePost(id, (post) => {
         if (expectedComments && (expectedComments.length !== post.comments.length || expectedComments.some((comment, i) => {
           const current = post.comments[i];
-          return comment.id !== current.id || comment.text !== current.text || comment.username !== current.username;
+          return comment.id !== current.id || comment.text !== current.text || comment.username !== current.username || comment.isAnonymous !== current.isAnonymous;
         }))) {
           throw new LocalDataError("Комментарии обновились в другой вкладке. Повторите удаление после обновления списка.");
         }

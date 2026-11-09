@@ -11,6 +11,7 @@ import { Comments } from "../Comments";
 import { BackHeader } from "../ui/BackHeader";
 import { PostActions } from "./PostActions";
 import { AuthorAvatar } from "./AuthorAvatar";
+import { PostAuthorLabel } from "./PostAuthorLabel";
 
 const detailAvatarClass = "[width:var(--avatars-detail-size)] [height:var(--avatars-detail-size)] [border-radius:var(--radii-round)] object-cover shrink-0";
 
@@ -41,7 +42,7 @@ export function PostDetail({ postId }: { postId: number }) {
             <span className={`${detailAvatarClass} flex items-center justify-center bg-ink [color:var(--colors-white)] font-display [font-size:var(--font-sizes-heading)] [font-weight:var(--font-weights-bold)]`}>А</span>
           )}
           <div>
-            <span className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]">{post.isOwn && post.named ? "@" : ""}{post.author}</span>
+            <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
             <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {post.minutes} мин</span>
           </div>
           <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId) : undefined} />

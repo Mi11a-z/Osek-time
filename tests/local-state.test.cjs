@@ -34,6 +34,7 @@ test('likes, saves and comments survive a new store instance', () => {
   assert.equal(byId(reloaded, 1).saved, true);
   assert.equal(byId(reloaded, 1).comments.at(-1).text, 'Проверка сохранения');
   assert.equal(byId(reloaded, 1).comments.at(-1).username, store.getSnapshot().profile.username);
+  assert.equal(byId(reloaded, 1).comments.at(-1).isAnonymous, false);
   assert.ok(byId(reloaded, 1).myCommentIndexes.includes(before.comments.length));
   assert.equal(reloaded.toggleLocalLike(1), true);
   assert.equal(byId(createLocalStore(() => storage), 1).likes, before.likes);
@@ -220,7 +221,7 @@ test('static comments without known authors are archived and excluded from visib
   assert.deepEqual(byId(store, 4).legacyAnonymousComments, ['Frito', 'Durum']);
   assert.equal(storage.getItem(LOCAL_STORAGE_KEY), null, 'Reading migration must not write automatically');
   store.toggleLocalSaved(4);
-  assert.equal(JSON.parse(storage.getItem(LOCAL_STORAGE_KEY)).version, 2);
+  assert.equal(JSON.parse(storage.getItem(LOCAL_STORAGE_KEY)).version, 3);
   assert.deepEqual(byId(createLocalStore(() => storage), 4).legacyAnonymousComments, ['Frito', 'Durum']);
 });
 
@@ -234,8 +235,8 @@ test('version 1 migration preserves known authors and archives unknown comments 
   const migrated = createLocalStore(() => storage);
   const post = byId(migrated, 1);
   assert.deepEqual(post.comments, [
-    { id: 'legacy:1:1', text: 'Мой старый A', username: baseline.profile.username },
-    { id: 'legacy:1:3', text: 'Мой старый B', username: baseline.profile.username },
+    { id: 'legacy:1:1', text: 'Мой старый A', username: baseline.profile.username, isAnonymous: false },
+    { id: 'legacy:1:3', text: 'Мой старый B', username: baseline.profile.username, isAnonymous: false },
   ]);
   assert.deepEqual(post.myCommentIndexes, [0, 1]);
   assert.deepEqual(post.legacyAnonymousComments, ['Без автора A', 'Без автора B']);
@@ -249,7 +250,7 @@ test('version 1 migration preserves known authors and archives unknown comments 
   assert.deepEqual(reloaded.comments, [post.comments[1]]);
   assert.deepEqual(reloaded.myCommentIndexes, [0]);
   assert.deepEqual(reloaded.legacyAnonymousComments, post.legacyAnonymousComments);
-  assert.equal(JSON.parse(storage.getItem(LOCAL_STORAGE_KEY)).version, 2);
+  assert.equal(JSON.parse(storage.getItem(LOCAL_STORAGE_KEY)).version, 3);
 });
 
 test('new comments capture the latest stored account username and never change it retrospectively', () => {
@@ -269,11 +270,11 @@ test('new comments capture the latest stored account username and never change i
   assert.notEqual(reloaded.comments[0].id, reloaded.comments[1].id);
 });
 
-test('version 2 rejects missing, blank and invalid comment usernames without overwriting storage', () => {
+test('version 3 rejects missing, blank and invalid comment usernames without overwriting storage', () => {
   for (const author of [undefined, null, '', '   ', 'Аноним', 'name with space']) {
     const { storage, store } = setup(); store.toggleLocalLike(1);
     const data = JSON.parse(storage.getItem(LOCAL_STORAGE_KEY));
-    data.posts[0].comments = [{ id: 'comment:invalid', text: 'Текст без корректного автора', username: author }];
+    data.posts[0].comments = [{ id: 'comment:invalid', text: 'Текст без корректного автора', username: author, isAnonymous: false }];
     data.posts[0].myCommentIndexes = [0];
     const raw = JSON.stringify(data); storage.setItem(LOCAL_STORAGE_KEY, raw);
     const reloaded = createLocalStore(() => storage);
@@ -293,7 +294,7 @@ test('a comment cannot be submitted with an invalid stored account username', ()
   assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
 });
 
-test('comment deletion compares id, text and username rather than object references', () => {
+test('comment deletion compares id, text, username and anonymity rather than object references', () => {
   const { storage, store } = setup(); store.addLocalComment(1, 'Комментарий');
   const original = byId(store, 1).comments;
   for (const field of ['id', 'text', 'username']) {
@@ -302,6 +303,77 @@ test('comment deletion compares id, text and username rather than object referen
     assert.equal(store.deleteLocalComment(1, 0, expected), false);
     assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
   }
+  const expected = JSON.parse(JSON.stringify(original)); expected[0].isAnonymous = !expected[0].isAnonymous;
+  const raw = storage.getItem(LOCAL_STORAGE_KEY);
+  assert.equal(store.deleteLocalComment(1, 0, expected), false);
+  assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
   assert.equal(store.deleteLocalComment(1, 0, JSON.parse(JSON.stringify(original))), true);
   assert.deepEqual(byId(createLocalStore(() => storage), 1).comments, []);
+});
+
+test('comment anonymity choices persist while real usernames remain available and are never relabelled', () => {
+  const { storage, store } = setup();
+  const accountUsername = store.getSnapshot().profile.username;
+  assert.equal(store.createLocalPost({ text: 'Мой анонимный пост', isAnonymous: true }), true);
+  const ownPost = store.getSnapshot().posts.find(post => post.text === 'Мой анонимный пост');
+  assert.equal(ownPost.author, 'Аноним'); assert.equal(ownPost.authorUsername, accountUsername);
+  assert.equal(store.addLocalComment(ownPost.id, 'По умолчанию с ником'), true);
+  assert.equal(store.addLocalComment(ownPost.id, 'Анонимный комментарий', true), true);
+  assert.equal(store.addLocalComment(ownPost.id, 'Снова с ником', false), true);
+  const savedComments = byId(store, ownPost.id).comments;
+  assert.deepEqual(savedComments.map(comment => comment.isAnonymous), [false, true, false]);
+  assert.ok(savedComments.every(comment => comment.username === accountUsername));
+  assert.equal(store.saveLocalProfile({ ...store.getSnapshot().profile, username: 'updated_handle' }), true);
+  const reloaded = createLocalStore(() => storage);
+  assert.deepEqual(byId(reloaded, ownPost.id).comments, savedComments);
+  assert.equal(byId(reloaded, ownPost.id).author, 'Аноним');
+  assert.equal(byId(reloaded, ownPost.id).authorUsername, 'updated_handle');
+  assert.equal(byId(reloaded, 1).authorUsername, undefined, 'Unknown seed authors must not be guessed');
+  assert.deepEqual(byId(reloaded, 1).comments, [], 'Enabling anonymity must not resurrect archived anonymous comments');
+});
+
+test('version 2 comments migrate as named and preserve known post usernames and archived texts', () => {
+  const { storage, store } = setup();
+  store.addLocalComment(1, 'Существующий именной комментарий');
+  const data = JSON.parse(storage.getItem(LOCAL_STORAGE_KEY));
+  data.version = 2;
+  for (const post of data.posts) {
+    delete post.authorUsername;
+    post.comments = post.comments.map(({ isAnonymous, ...comment }) => comment);
+  }
+  data.posts.find(post => post.id === 2).authorUsername = 'aidana_account';
+  const oldComment = data.posts.find(post => post.id === 1).comments[0];
+  const archive = data.posts.find(post => post.id === 1).legacyAnonymousComments;
+  const raw = JSON.stringify(data); storage.setItem(LOCAL_STORAGE_KEY, raw);
+  const migrated = createLocalStore(() => storage);
+  assert.deepEqual(byId(migrated, 1).comments, [{ ...oldComment, isAnonymous: false }]);
+  assert.deepEqual(byId(migrated, 1).legacyAnonymousComments, archive);
+  assert.equal(byId(migrated, 1).authorUsername, undefined);
+  assert.equal(byId(migrated, 2).authorUsername, 'aidana_account');
+  assert.ok(migrated.getSnapshot().posts.filter(post => post.isOwn).every(post => post.authorUsername === data.profile.username));
+  assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
+  assert.equal(migrated.toggleLocalSaved(1), true);
+  assert.equal(JSON.parse(storage.getItem(LOCAL_STORAGE_KEY)).version, 3);
+  assert.deepEqual(byId(createLocalStore(() => storage), 1).comments, [{ ...oldComment, isAnonymous: false }]);
+  assert.equal(byId(createLocalStore(() => storage), 2).authorUsername, 'aidana_account');
+});
+
+test('invalid anonymity flags are rejected both when posting and when reading version 3', () => {
+  for (const flag of [null, 'true', 0, 1, {}, []]) {
+    const { storage, store } = setup(); store.toggleLocalLike(1);
+    const raw = storage.getItem(LOCAL_STORAGE_KEY);
+    assert.equal(store.addLocalComment(1, 'Некорректный режим', flag), false);
+    assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
+    assert.ok(store.getSnapshot().error);
+  }
+  for (const flag of [undefined, null, 'false', 0, 1]) {
+    const { storage, store } = setup(); store.addLocalComment(1, 'Комментарий');
+    const data = JSON.parse(storage.getItem(LOCAL_STORAGE_KEY));
+    data.posts[0].comments[0].isAnonymous = flag;
+    const raw = JSON.stringify(data); storage.setItem(LOCAL_STORAGE_KEY, raw);
+    const reloaded = createLocalStore(() => storage);
+    assert.ok(reloaded.getSnapshot().error);
+    assert.equal(reloaded.toggleLocalLike(1), false);
+    assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);
+  }
 });
