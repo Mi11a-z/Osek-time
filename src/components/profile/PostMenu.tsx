@@ -53,7 +53,7 @@ export function PostMenu({ onEdit, onDelete, onReport, onBlockAuthor, deleteLabe
 
   return (
     <>
-      <div ref={ref} className="relative">
+      <div ref={ref} className={`relative ${header ? "ml-auto self-start" : ""}`}>
         <button
           type="button"
           aria-label="Действия с публикацией"

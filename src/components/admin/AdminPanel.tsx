@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BackHeader } from "../ui/BackHeader";
+import { useLocalData } from "../../data/local-store";
+import { posts as samplePosts } from "../../data/posts";
 import {
   blockUser,
   dismissReport,
@@ -32,7 +34,14 @@ function formatDate(ts: number) {
 
 export function AdminPanel() {
   const { ready, role, reports, removed, blocked } = useModeration();
+  const localData = useLocalData();
   const [tab, setTab] = useState<AdminTab>("new");
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNow(Date.now()), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (!ready) return null;
 
@@ -50,13 +59,21 @@ export function AdminPanel() {
   const newReports = reports.filter((r) => r.status === "new");
   const doneReports = reports.filter((r) => r.status !== "new");
   const visible = tab === "new" ? newReports : doneReports;
-
-  const stats = [
-    { label: "Новых жалоб", value: newReports.length },
-    { label: "Всего жалоб", value: reports.length },
-    { label: "Удалено постов", value: removed.length },
-    { label: "Заблокировано", value: blocked.length },
+  const posts = [
+    ...samplePosts.filter((post) => !localData.posts.some((localPost) => localPost.id === post.id)),
+    ...localData.posts,
+  ].filter((post) => !removed.includes(post.id));
+  const periods = [
+    { id: "day", label: "Сегодня", since: now === null ? Infinity : new Date(new Date(now).setHours(0, 0, 0, 0)).getTime() },
+    { id: "week", label: "7 дней", since: now === null ? Infinity : now - 7 * 24 * 60 * 60 * 1000 },
+    { id: "month", label: "30 дней", since: now === null ? Infinity : now - 30 * 24 * 60 * 60 * 1000 },
   ];
+  const cityCounts = posts.reduce<Record<string, number>>((counts, post) => {
+    const city = post.city.trim();
+    if (city) counts[city] = (counts[city] ?? 0) + 1;
+    return counts;
+  }, {});
+  const popularCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
@@ -68,13 +85,51 @@ export function AdminPanel() {
         Выйти из режима админа
       </button>
 
-      <section className="mt-5 grid grid-cols-4 overflow-hidden rounded-[var(--radii-panel)] border-solid border-ink bg-surface [border-width:var(--borders-strong)] max-[650px]:grid-cols-2" aria-label="Статистика">
-        {stats.map((item, i) => (
-          <div key={item.label} className={`flex flex-col items-center gap-1 border-solid border-line px-2 py-[18px] ${i > 0 ? "[border-left-width:var(--borders-thin)]" : ""}`}>
-            <strong className="font-display [font-size:var(--font-sizes-stat)]">{item.value}</strong>
-            <span className="text-muted [font-size:var(--font-sizes-label)]">{item.label}</span>
+      <section className="mt-6 grid gap-4 lg:grid-cols-2" aria-label="Обзор активности">
+        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="m-0 font-display text-xl font-bold">Пользователи</h2>
+            <span className="text-muted text-sm">Регистрация недоступна в демо-режиме</span>
           </div>
-        ))}
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="Известно приложению" value={localData.ready ? 1 : 0} />
+            {periods.map((period) => <Metric key={period.id} label={period.label} value="—" />)}
+          </div>
+          <p className="mb-0 mt-4 text-sm text-muted">Приложение хранит один профиль в этом браузере, без списка аккаунтов и дат регистрации.</p>
+        </div>
+
+        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="m-0 font-display text-xl font-bold">Публикации</h2>
+            <span className="text-muted text-sm">Доступно в этой ленте: {posts.length}</span>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            {periods.map((period) => <Metric key={period.id} label={period.label} value={now === null ? "—" : localData.posts.filter((post) => post.createdAt && post.createdAt >= period.since && post.createdAt <= now).length} />)}
+          </div>
+          <p className="mb-0 mt-4 text-sm text-muted">Считаются новые публикации, сохранённые в этом браузере. У демонстрационных постов даты нет.</p>
+        </div>
+
+        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+          <h2 className="m-0 font-display text-xl font-bold">Популярные темы</h2>
+          <p className="mb-4 mt-1 text-sm text-muted">Города в публикациях — доступные сейчас темы ленты.</p>
+          {popularCities.length ? <ol className="m-0 grid list-none gap-3 p-0">
+            {popularCities.map(([city, count], index) => <li key={city} className="flex items-center gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-coral-deep">{index + 1}</span>
+              <span className="font-semibold"># {city}</span><span className="ml-auto text-sm text-muted">{count} пост.</span>
+            </li>)}
+          </ol> : <p className="mb-0 text-muted">Публикаций пока нет.</p>}
+        </div>
+
+        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+          <h2 className="m-0 font-display text-xl font-bold">Жалобы и модерация</h2>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="Новые" value={newReports.length} />
+            <Metric label="Всего" value={reports.length} />
+            <Metric label="Постов удалено" value={removed.length} />
+            <Metric label="Заблокировано" value={blocked.length} />
+          </div>
+          <p className="mb-0 mt-4 text-sm text-muted">Блоки обновляются при обработке жалоб.</p>
+        </div>
       </section>
 
       <nav className="flex flex-wrap [gap:var(--profile-tabs-gap)] [margin:var(--profile-tabs-margin)]" aria-label="Разделы админ-панели">
@@ -137,6 +192,13 @@ export function AdminPanel() {
       )}
     </main>
   );
+}
+
+function Metric({ label, value }: { label: string; value: number | string }) {
+  return <div className="flex min-h-20 min-w-0 flex-col justify-center rounded-xl bg-peach/40 px-3 py-3">
+    <strong className="font-display text-2xl">{value}</strong>
+    <span className="break-words text-xs leading-tight text-muted">{label}</span>
+  </div>;
 }
 
 function ReportCard({

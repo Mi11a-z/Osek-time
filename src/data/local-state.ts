@@ -2,7 +2,7 @@ import { posts as feedPosts, type Post } from "./posts";
 import { initialProfilePosts, profileUser, type ProfileUser } from "./profile";
 
 export type LocalComment = { id: string; text: string; username: string; isAnonymous: boolean };
-export type LocalPost = Omit<Post, "comments"> & { authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
+export type LocalPost = Omit<Post, "comments"> & { createdAt?: number; authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
 export type LocalProfile = ProfileUser & { country: string };
 export type LocalSnapshot = { ready: boolean; posts: LocalPost[]; profile: LocalProfile; avatar: string | null; error: string | null };
 type LocalData = Pick<LocalSnapshot, "posts" | "profile" | "avatar">;
@@ -88,6 +88,7 @@ function readPost(value: unknown, version: 1 | 2 | 3, author: string): LocalPost
   for (const field of ["question", "imageAlt"] as const) if (value[field] !== undefined && !string(value[field])) throw invalid();
   return {
     id: value.id, named: value.named, author: value.author, authorUsername: value.authorUsername as string | undefined, city: value.city, minutes: value.minutes,
+    createdAt: Number.isSafeInteger(value.createdAt) && (value.createdAt as number) > 0 ? value.createdAt as number : undefined,
     text: value.text, likes: value.likes, ...commentData, isOwn: value.isOwn, liked: value.liked, saved: value.saved,
     avatar: value.avatar as string | undefined, image: value.image as string | undefined,
     question: value.question as string | undefined, imageAlt: value.imageAlt as string | undefined,
@@ -222,7 +223,7 @@ export function createLocalStore(getStorage: () => Storage) {
         while (used.has(id)) id++;
         if (!Number.isSafeInteger(id)) throw new LocalDataError("Не удалось создать номер публикации. Повторите попытку.");
         const post: LocalPost = {
-          id, text, image: input.image, city, named: !input.isAnonymous, author: data.profile.username, authorUsername: data.profile.username, minutes: 0,
+          id, text, image: input.image, city, named: !input.isAnonymous, author: data.profile.username, authorUsername: data.profile.username, minutes: 0, createdAt: Date.now(),
           likes: 0, comments: [], legacyAnonymousComments: [], liked: false, saved: false, isOwn: true, myCommentIndexes: [],
         };
         return { ...data, posts: [post, ...data.posts] };
