@@ -8,9 +8,11 @@ import { ReportDialog } from "./ReportDialog";
 import Image from "next/image";
 import { deleteLocalPost, useLocalData } from "../../data/local-store";
 import { usePostInteractions } from "../../usePostInteractions";
+import { usePostViews } from "../../usePostViews";
 import { Comments } from "../Comments";
 import { BackHeader } from "../ui/BackHeader";
 import { PostActions } from "./PostActions";
+import { ViewsCount } from "./ViewsCount";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { PostAuthorLabel } from "./PostAuthorLabel";
 import { useRouter } from "next/navigation";
@@ -23,6 +25,7 @@ const detailAvatarClass = "[width:var(--avatars-detail-size)] [height:var(--avat
 export function PostDetail({ postId }: { postId: number }) {
   const router = useRouter();
   const { likes, isLiked, isSaved, comments, toggleLike, toggleSave, addComment, deleteComment } = usePostInteractions(postId);
+  const views = usePostViews(postId, true); // true = засчитать просмотр
   const { posts, profile, ready: localReady, error } = useLocalData();
   const post = posts.find((item) => item.id === postId);
   const { ready, role, removed, blocked } = useModeration();
@@ -80,6 +83,9 @@ export function PostDetail({ postId }: { postId: number }) {
           showMore={false}
           separated
         />
+        <div className="mt-2 flex justify-end">
+          <ViewsCount count={views} />
+        </div>
       </article>
 
       {reporting && <ReportDialog post={{ postId: post.id, postText: post.text, postAuthor: post.author, authorId }} onClose={() => setReporting(false)} />}

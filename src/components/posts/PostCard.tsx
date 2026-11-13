@@ -6,9 +6,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteLocalPost, voteLocalPoll, useLocalData, type LocalPost } from "../../data/local-store";
 import { usePostInteractions } from "../../usePostInteractions";
+import { usePostViews } from "../../usePostViews";
 import { Comments } from "../Comments";
 import { PostAuthor } from "./PostAuthor";
 import { PostActions } from "./PostActions";
+import { ViewsCount } from "./ViewsCount";
 import { PostMenu } from "../profile/PostMenu";
 import { ReportDialog } from "./ReportDialog";
 import { blockUser, removePost, useModeration } from "../../moderation";
@@ -26,12 +28,13 @@ const compactCardClass = "[border:var(--borders-thin)_solid_var(--colors-card-bo
 const featuredTagClass = "mt-[18px] py-1 [font-size:var(--font-sizes-body-large)] max-[480px]:mt-3.5 max-[480px]:[font-size:var(--font-sizes-input)]";
 const compactTagClass = "mt-2 py-0.5 [font-size:var(--font-sizes-body)]";
 
-export function PostCard({ post, variant, onHashtagClick }: PostCardProps)  {
+export function PostCard({ post, variant, onHashtagClick }: PostCardProps) {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
   const [pollSelection, setPollSelection] = useState<number[]>([]);
   const [pollExpired, setPollExpired] = useState(false);
   const interactions = usePostInteractions(post.id);
+  const views = usePostViews(post.id);
   const { profile, error } = useLocalData();
   const { role, removed, blocked } = useModeration();
   const [reporting, setReporting] = useState(false);
@@ -147,6 +150,9 @@ export function PostCard({ post, variant, onHashtagClick }: PostCardProps)  {
           showMore={false}
           separated={featured}
         />
+        <div className="mt-2 flex justify-end">
+          <ViewsCount count={views} />
+        </div>
         {actionFailed && error && <p role="alert" className="mt-3 rounded-xl bg-peach p-3 text-coral-deep">{error}</p>}
         {reporting && (
           <ReportDialog
@@ -161,4 +167,3 @@ export function PostCard({ post, variant, onHashtagClick }: PostCardProps)  {
     </article>
   );
 }
-
