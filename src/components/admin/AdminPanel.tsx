@@ -32,6 +32,12 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Достаём хештеги вида #алматы из текста поста (\p{L} — любые буквы, в том числе русские)
+function extractTags(text: string): string[] {
+  const found = text.match(/#[\p{L}\p{N}_]+/gu) ?? [];
+  return found.map((tag) => tag.toLowerCase());
+}
+
 export function AdminPanel() {
   const { ready, role, reports, removed, blocked } = useModeration();
   const localData = useLocalData();
@@ -68,12 +74,14 @@ export function AdminPanel() {
     { id: "week", label: "7 дней", since: now === null ? Infinity : now - 7 * 24 * 60 * 60 * 1000 },
     { id: "month", label: "30 дней", since: now === null ? Infinity : now - 30 * 24 * 60 * 60 * 1000 },
   ];
-  const cityCounts = posts.reduce<Record<string, number>>((counts, post) => {
-    const city = post.city.trim();
-    if (city) counts[city] = (counts[city] ?? 0) + 1;
+  const tagCounts = posts.reduce<Record<string, number>>((counts, post) => {
+    // Set — чтобы тег, повторённый в одном посте, считался один раз
+    for (const tag of new Set(extractTags(post.text ?? ""))) {
+      counts[tag] = (counts[tag] ?? 0) + 1;
+    }
     return counts;
   }, {});
-  const popularCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const popularTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
@@ -86,50 +94,56 @@ export function AdminPanel() {
       </button>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2" aria-label="Обзор активности">
-        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="m-0 font-display text-xl font-bold">Пользователи</h2>
-            <span className="text-muted text-sm">Регистрация недоступна в демо-режиме</span>
+        {/* 1. Пользователи */}
+        <DashCard title="Пользователи" note="Регистрация недоступна в демо-режиме">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="Всего" value={localData.ready ? 1 : 0} />
+            {periods.map((period) => <Metric key={period.id} label={`Новых · ${period.label}`} value="—" />)}
           </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Metric label="Известно приложению" value={localData.ready ? 1 : 0} />
-            {periods.map((period) => <Metric key={period.id} label={period.label} value="—" />)}
-          </div>
-          <p className="mb-0 mt-4 text-sm text-muted">Приложение хранит один профиль в этом браузере, без списка аккаунтов и дат регистрации.</p>
-        </div>
+          <p className="mb-0 mt-4 text-sm text-muted">Приложение хранит один профиль в этом браузере, без списка аккаунтов и дат регистрации. Реальные цифры появятся, когда backend начнёт отдавать статистику.</p>
+        </DashCard>
 
-        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="m-0 font-display text-xl font-bold">Публикации</h2>
-            <span className="text-muted text-sm">Доступно в этой ленте: {posts.length}</span>
-          </div>
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            {periods.map((period) => <Metric key={period.id} label={period.label} value={now === null ? "—" : localData.posts.filter((post) => post.createdAt && post.createdAt >= period.since && post.createdAt <= now).length} />)}
-          </div>
-          <p className="mb-0 mt-4 text-sm text-muted">Считаются новые публикации, сохранённые в этом браузере. У демонстрационных постов даты нет.</p>
-        </div>
+        {/* 2. Популярные хештеги */}
+        <DashCard title="Популярные хештеги" note="Топ-5 по количеству постов">
+          {popularTags.length ? (
+            <ol className="m-0 grid list-none gap-3 p-0">
+              {popularTags.map(([tag, count], index) => (
+                <li key={tag} className="flex items-center gap-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-coral-deep">{index + 1}</span>
+                  <span className="min-w-0 break-words font-semibold">{tag}</span>
+                  <span className="ml-auto shrink-0 text-sm text-muted">{count} пост.</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="m-0 text-muted">Хештегов пока нет. Они появятся, когда в постах будут слова с #.</p>
+          )}
+        </DashCard>
 
-        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
-          <h2 className="m-0 font-display text-xl font-bold">Популярные темы</h2>
-          <p className="mb-4 mt-1 text-sm text-muted">Города в публикациях — доступные сейчас темы ленты.</p>
-          {popularCities.length ? <ol className="m-0 grid list-none gap-3 p-0">
-            {popularCities.map(([city, count], index) => <li key={city} className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-coral-deep">{index + 1}</span>
-              <span className="font-semibold"># {city}</span><span className="ml-auto text-sm text-muted">{count} пост.</span>
-            </li>)}
-          </ol> : <p className="mb-0 text-muted">Публикаций пока нет.</p>}
-        </div>
+        {/* 3. Публикации */}
+        <DashCard title="Публикации" note="Без удалённых">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="Всего в ленте" value={posts.length} />
+            {periods.map((period) => (
+              <Metric
+                key={period.id}
+                label={period.label}
+                value={now === null ? "—" : localData.posts.filter((post) => post.createdAt && post.createdAt >= period.since && post.createdAt <= now).length}
+              />
+            ))}
+          </div>
+          <p className="mb-0 mt-4 text-sm text-muted">За период считаются посты, сохранённые в этом браузере. У демонстрационных постов даты нет.</p>
+        </DashCard>
 
-        <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
-          <h2 className="m-0 font-display text-xl font-bold">Жалобы и модерация</h2>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Metric label="Новые" value={newReports.length} />
-            <Metric label="Всего" value={reports.length} />
+        {/* 4. Жалобы и модерация */}
+        <DashCard title="Жалобы и модерация" note="Обновляется при обработке жалоб">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric label="Новые жалобы" value={newReports.length} />
+            <Metric label="Всего жалоб" value={reports.length} />
             <Metric label="Постов удалено" value={removed.length} />
             <Metric label="Заблокировано" value={blocked.length} />
           </div>
-          <p className="mb-0 mt-4 text-sm text-muted">Блоки обновляются при обработке жалоб.</p>
-        </div>
+        </DashCard>
       </section>
 
       <nav className="flex flex-wrap [gap:var(--profile-tabs-gap)] [margin:var(--profile-tabs-margin)]" aria-label="Разделы админ-панели">
@@ -191,6 +205,18 @@ export function AdminPanel() {
         </ul>
       )}
     </main>
+  );
+}
+
+function DashCard({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="m-0 font-display text-xl font-bold">{title}</h2>
+        {note && <span className="text-sm text-muted">{note}</span>}
+      </div>
+      {children}
+    </div>
   );
 }
 
