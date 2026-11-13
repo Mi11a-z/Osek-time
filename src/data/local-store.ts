@@ -27,6 +27,6 @@ export function useLocalData() {
 }
 
 export const {
-  createLocalPost, toggleLocalLike, toggleLocalSaved, deleteLocalPost, editLocalPost,
+  createLocalPost, toggleLocalLike, toggleLocalSaved, voteLocalPoll, deleteLocalPost, editLocalPost,
   addLocalComment, deleteLocalComment, saveLocalProfile, saveLocalAvatar,
 } = localStore;

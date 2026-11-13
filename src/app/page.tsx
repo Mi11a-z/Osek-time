@@ -59,10 +59,10 @@ export default function Home() {
           </p>
         )}
         {filteredPosts.map((post, index) => (
-          <PostCard
+            <PostCard
             key={post.id}
             post={post}
-            variant={index === 0 ? "featured" : post.image ? "photo" : "short"}
+              variant={index === 0 ? "featured" : post.image ? "photo" : "short"}
           />
         ))}
       </section>

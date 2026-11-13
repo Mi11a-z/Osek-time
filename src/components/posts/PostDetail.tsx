@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useModeration, removePost, blockUser } from "../../moderation";
 import { PostMenu } from "../profile/PostMenu";
 import { ReportDialog } from "./ReportDialog";
@@ -24,6 +25,7 @@ export function PostDetail({ postId }: { postId: number }) {
   const [reporting, setReporting] = useState(false);
   // Сохраняем прежнюю связь собственных публикаций с жалобами и блокировками.
   const authorId = post?.named ? (post.isOwn ? profile.name : post.author) : null;
+  const authorHref = post?.named ? post.isOwn ? "/profile" : `/user/${encodeURIComponent(post.authorUsername ?? post.author.toLowerCase())}` : undefined;
   if (!ready || !localReady) return <main className="mx-auto [max-width:var(--layout-post-max-width)] [padding:var(--layout-post-padding)]"><BackHeader prefix="pd" /><p role="status" className="py-8 text-center text-muted">Загружаем публикацию…</p></main>;
   if (!post || removed.includes(post.id) || (authorId !== null && blocked.includes(authorId)) || (post.isOwn && (blocked.includes(profile.username) || blocked.includes(profile.name)))) {
     return <main className="mx-auto max-w-3xl p-6"><BackHeader prefix="pd" />{error && <p role="alert" className="mb-4 text-coral-deep">{error}</p>}<p>Публикация недоступна.</p></main>;
@@ -37,19 +39,19 @@ export function PostDetail({ postId }: { postId: number }) {
       <article className="[padding:var(--cards-detail-padding)] [border:var(--borders-strong)_solid_var(--ink)] [border-radius:var(--cards-detail-radius)] bg-surface max-[650px]:[padding:var(--cards-detail-padding-at650)]">
         <header className="mb-4 flex items-center gap-3.5">
           {post.named ? (
-            <AuthorAvatar className={detailAvatarClass} author={post.author} src={post.avatar} />
+            <Link href={authorHref ?? "/profile"} aria-label={`Перейти в профиль ${post.author}`} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-coral"><AuthorAvatar className={detailAvatarClass} author={post.author} src={post.avatar} /></Link>
           ) : (
             <span className={`${detailAvatarClass} flex items-center justify-center bg-ink [color:var(--colors-white)] font-display [font-size:var(--font-sizes-heading)] [font-weight:var(--font-weights-bold)]`}>А</span>
           )}
           <div>
-            <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
+            <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} href={authorHref} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
             <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {post.minutes} мин</span>
           </div>
           <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId) : undefined} />
         </header>
 
         <span className="inline-block px-3 py-1.5 [border-radius:var(--radii-tag)] bg-peach text-coral-deep [font-weight:var(--font-weights-bold)] [font-size:var(--font-sizes-meta)]"># {post.city}</span>
-        <p className={`mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] ${post.question ? "font-display [font-size:var(--font-sizes-post-heading)] [font-weight:var(--font-weights-heavy)] leading-[1.15] max-[650px]:[font-size:var(--font-sizes-heading-large)]" : "[font-size:var(--font-sizes-title-small)] leading-[1.5]"}`}>{post.text}</p>
+        {post.text.trim() && <p className={`mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] ${post.question ? "font-display [font-size:var(--font-sizes-post-heading)] [font-weight:var(--font-weights-heavy)] leading-[1.15] max-[650px]:[font-size:var(--font-sizes-heading-large)]" : "[font-size:var(--font-sizes-title-small)] leading-[1.5]"}`}>{post.text}</p>}
         {post.question && <p className="mt-3 font-display [font-size:var(--font-sizes-title)]">{post.question}</p>}
 
         {post.image && (

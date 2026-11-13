@@ -1,13 +1,14 @@
 import { posts as feedPosts, type Post } from "./posts";
 import { initialProfilePosts, profileUser, type ProfileUser } from "./profile";
 
-export type LocalComment = { id: string; text: string; username: string; isAnonymous: boolean };
-export type LocalPost = Omit<Post, "comments"> & { createdAt?: number; authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
+export type LocalComment = { id: string; text: string; username: string; isAnonymous: boolean; createdAt?: number };
+export type LocalPoll = { question: string; options: string[]; votes: number[]; voted: number[]; multiple: boolean; closesAt: number };
+export type LocalPost = Omit<Post, "comments"> & { poll?: LocalPoll; createdAt?: number; authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
 export type LocalProfile = ProfileUser & { country: string };
 export type LocalSnapshot = { ready: boolean; posts: LocalPost[]; profile: LocalProfile; avatar: string | null; error: string | null };
 type LocalData = Pick<LocalSnapshot, "posts" | "profile" | "avatar">;
 type Storage = { getItem(key: string): string | null; setItem(key: string, value: string): void };
-type NewPost = { text: string; image?: string; isAnonymous?: boolean; city?: string };
+type NewPost = { text: string; image?: string; poll?: { question: string; options: string[]; durationHours: number; multiple: boolean }; isAnonymous?: boolean; city?: string };
 
 export const LOCAL_STORAGE_KEY = "osek-local-v1";
 export const LEGACY_STORAGE_KEYS = ["osek-posts", "osek-profile", "osek-avatar", "osek-saved-posts"];
@@ -27,7 +28,36 @@ function readComment(value: unknown, version: 2 | 3 = 3): LocalComment {
   if (!record(value) || !string(value.id, 1, 100) || !/^[a-z0-9:_-]+$/i.test(value.id)
     || !string(value.text, 1) || !value.text.trim() || !username(value.username)
     || (version === 3 && typeof value.isAnonymous !== "boolean")) throw invalid();
-  return { id: value.id, text: value.text, username: value.username, isAnonymous: version === 3 ? value.isAnonymous as boolean : false };
+  if (value.createdAt !== undefined && (!Number.isSafeInteger(value.createdAt) || (value.createdAt as number) <= 0)) throw invalid();
+  return { id: value.id, text: value.text, username: value.username, isAnonymous: version === 3 ? value.isAnonymous as boolean : false, createdAt: value.createdAt as number | undefined };
+}
+
+function readPoll(value: unknown): LocalPoll | undefined {
+  if (value === undefined) return undefined;
+  if (!record(value)) throw invalid();
+  const poll = value;
+  if (!string(poll.question, 1, 300) || !poll.question.trim() || !Array.isArray(poll.options) || poll.options.length < 2 || poll.options.length > 4
+    || !poll.options.every((option) => string(option, 1, 100) && option.trim()) || !Array.isArray(poll.votes)
+    || poll.votes.length !== poll.options.length || !poll.votes.every(integer)
+    || (poll.multiple !== undefined && typeof poll.multiple !== "boolean")
+    || (poll.closesAt !== undefined && !integer(poll.closesAt))) throw invalid();
+  const options = poll.options as string[];
+  const votes = poll.votes as number[];
+  let voted: number[];
+  if (Array.isArray(poll.voted)) {
+    if (!poll.voted.every((item) => integer(item) && item < options.length)) throw invalid();
+    voted = poll.voted as number[];
+  } else if (poll.voted === null || poll.voted === undefined) voted = [];
+  else if (integer(poll.voted) && poll.voted < poll.options.length) voted = [poll.voted];
+  else throw invalid();
+  return {
+    question: poll.question,
+    options,
+    votes,
+    voted,
+    multiple: poll.multiple === true,
+    closesAt: integer(poll.closesAt) ? poll.closesAt : Number.MAX_SAFE_INTEGER,
+  };
 }
 
 function migrateComments(postId: number, texts: string[], ownIndexes: number[], author: string, archive: string[] = []) {
@@ -71,7 +101,7 @@ function readProfile(value: unknown): LocalProfile {
 function readPost(value: unknown, version: 1 | 2 | 3, author: string): LocalPost {
   if (!record(value) || !integer(value.id) || value.id === 0 || typeof value.named !== "boolean"
     || !string(value.author, 1, 1000) || !string(value.city, 1, 1000) || !integer(value.minutes)
-    || !string(value.text) || (!value.text.trim() && !media(value.image)) || !integer(value.likes) || !Array.isArray(value.comments)
+    || !string(value.text) || (!value.text.trim() && !media(value.image) && !record(value.poll)) || !integer(value.likes) || !Array.isArray(value.comments)
     || typeof value.isOwn !== "boolean" || typeof value.liked !== "boolean" || typeof value.saved !== "boolean"
     || !Array.isArray(value.myCommentIndexes) || (value.liked && value.likes < 1)) throw invalid();
   const rawComments = value.comments;
@@ -92,6 +122,7 @@ function readPost(value: unknown, version: 1 | 2 | 3, author: string): LocalPost
     text: value.text, likes: value.likes, ...commentData, isOwn: value.isOwn, liked: value.liked, saved: value.saved,
     avatar: value.avatar as string | undefined, image: value.image as string | undefined,
     question: value.question as string | undefined, imageAlt: value.imageAlt as string | undefined,
+    poll: readPoll(value.poll),
   };
 }
 
@@ -215,7 +246,8 @@ export function createLocalStore(getStorage: () => Storage) {
     createLocalPost(input: NewPost) {
       return change((data) => {
         if (input.image !== undefined && !media(input.image)) throw new LocalDataError("Не удалось прочитать изображение. Выберите его ещё раз.");
-        const text = content(input.text, input.image !== undefined);
+        if (input.poll && (input.poll.question.trim().length === 0 || input.poll.question.length > 300 || input.poll.options.length < 2 || input.poll.options.length > 4 || input.poll.options.some((option) => !option.trim() || option.length > 100) || ![24, 72, 168].includes(input.poll.durationHours))) throw new LocalDataError("Добавьте вопрос и от двух до четырёх вариантов опроса.");
+        const text = content(input.text, input.image !== undefined || input.poll !== undefined);
         const city = input.city?.trim() || data.profile.city;
         if (city.length > 1000 || (input.isAnonymous !== undefined && typeof input.isAnonymous !== "boolean")) throw new LocalDataError("Проверьте параметры публикации.");
         const used = new Set(data.posts.map((post) => post.id));
@@ -223,7 +255,7 @@ export function createLocalStore(getStorage: () => Storage) {
         while (used.has(id)) id++;
         if (!Number.isSafeInteger(id)) throw new LocalDataError("Не удалось создать номер публикации. Повторите попытку.");
         const post: LocalPost = {
-          id, text, image: input.image, city, named: !input.isAnonymous, author: data.profile.username, authorUsername: data.profile.username, minutes: 0, createdAt: Date.now(),
+          id, text, image: input.image, poll: input.poll ? { question: input.poll.question, options: input.poll.options, multiple: input.poll.multiple, closesAt: Date.now() + input.poll.durationHours * 60 * 60 * 1000, votes: input.poll.options.map(() => 0), voted: [] } : undefined, city, named: !input.isAnonymous, author: data.profile.username, authorUsername: data.profile.username, minutes: 0, createdAt: Date.now(),
           likes: 0, comments: [], legacyAnonymousComments: [], liked: false, saved: false, isOwn: true, myCommentIndexes: [],
         };
         return { ...data, posts: [post, ...data.posts] };
@@ -231,6 +263,11 @@ export function createLocalStore(getStorage: () => Storage) {
     },
     toggleLocalLike(id: number) { return updatePost(id, (post) => ({ ...post, liked: !post.liked, likes: Math.max(0, post.likes + (post.liked ? -1 : 1)) })); },
     toggleLocalSaved(id: number) { return updatePost(id, (post) => ({ ...post, saved: !post.saved })); },
+    voteLocalPoll(id: number, options: number[]) { return updatePost(id, (post) => {
+      if (!post.poll || !options.length || options.some((option) => !integer(option) || option >= post.poll!.options.length) || post.poll.voted.length > 0 || post.poll.closesAt <= Date.now() || (!post.poll.multiple && options.length > 1)) throw new LocalDataError("Вы уже голосовали или опрос завершён.");
+      const votes = [...post.poll.votes]; options.forEach((option) => { votes[option] += 1; });
+      return { ...post, poll: { ...post.poll, votes, voted: options } };
+    }); },
     deleteLocalPost(id: number) {
       return change((data) => {
         const post = data.posts.find((entry) => entry.id === id);
@@ -244,7 +281,7 @@ export function createLocalStore(getStorage: () => Storage) {
       return updatePost(id, (post, data) => {
         if (typeof isAnonymous !== "boolean") throw new LocalDataError("Выберите режим публикации комментария.");
         if (!username(data.profile.username)) throw new LocalDataError("Укажите корректный ник аккаунта в профиле, чтобы оставить комментарий.");
-        const comment: LocalComment = { id: newCommentId(data), text: content(text), username: data.profile.username, isAnonymous };
+        const comment: LocalComment = { id: newCommentId(data), text: content(text), username: data.profile.username, isAnonymous, createdAt: Date.now() };
         return { ...post, comments: [...post.comments, comment], myCommentIndexes: [...post.myCommentIndexes, post.comments.length] };
       });
     },

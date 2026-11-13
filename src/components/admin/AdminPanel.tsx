@@ -32,12 +32,6 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-// Достаём хештеги вида #алматы из текста поста (\p{L} — любые буквы, в том числе русские)
-function extractTags(text: string): string[] {
-  const found = text.match(/#[\p{L}\p{N}_]+/gu) ?? [];
-  return found.map((tag) => tag.toLowerCase());
-}
-
 export function AdminPanel() {
   const { ready, role, reports, removed, blocked } = useModeration();
   const localData = useLocalData();
@@ -74,14 +68,12 @@ export function AdminPanel() {
     { id: "week", label: "7 дней", since: now === null ? Infinity : now - 7 * 24 * 60 * 60 * 1000 },
     { id: "month", label: "30 дней", since: now === null ? Infinity : now - 30 * 24 * 60 * 60 * 1000 },
   ];
-  const tagCounts = posts.reduce<Record<string, number>>((counts, post) => {
-    // Set — чтобы тег, повторённый в одном посте, считался один раз
-    for (const tag of new Set(extractTags(post.text ?? ""))) {
-      counts[tag] = (counts[tag] ?? 0) + 1;
-    }
+  const cityCounts = posts.reduce<Record<string, number>>((counts, post) => {
+    const city = post.city.trim();
+    if (city) counts[city] = (counts[city] ?? 0) + 1;
     return counts;
   }, {});
-  const popularTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const popularCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
     <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
@@ -103,21 +95,14 @@ export function AdminPanel() {
           <p className="mb-0 mt-4 text-sm text-muted">Приложение хранит один профиль в этом браузере, без списка аккаунтов и дат регистрации. Реальные цифры появятся, когда backend начнёт отдавать статистику.</p>
         </DashCard>
 
-        {/* 2. Популярные хештеги */}
-        <DashCard title="Популярные хештеги" note="Топ-5 по количеству постов">
-          {popularTags.length ? (
-            <ol className="m-0 grid list-none gap-3 p-0">
-              {popularTags.map(([tag, count], index) => (
-                <li key={tag} className="flex items-center gap-3">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-coral-deep">{index + 1}</span>
-                  <span className="min-w-0 break-words font-semibold">{tag}</span>
-                  <span className="ml-auto shrink-0 text-sm text-muted">{count} пост.</span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="m-0 text-muted">Хештегов пока нет. Они появятся, когда в постах будут слова с #.</p>
-          )}
+        {/* 2. Популярные темы */}
+        <DashCard title="Популярные темы" note="Города в публикациях — доступные сейчас темы ленты">
+          {popularCities.length ? <ol className="m-0 grid list-none gap-3 p-0">
+            {popularCities.map(([city, count], index) => <li key={city} className="flex items-center gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-peach text-sm font-bold text-coral-deep">{index + 1}</span>
+              <span className="font-semibold"># {city}</span><span className="ml-auto text-sm text-muted">{count} пост.</span>
+            </li>)}
+          </ol> : <p className="mb-0 text-muted">Публикаций пока нет.</p>}
         </DashCard>
 
         {/* 3. Публикации */}

@@ -40,7 +40,7 @@ export function PostAuthor({ author, avatar, named, isOwn = false, username, cit
         </span>
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
-        <PostAuthorLabel author={author} named={named} username={username ?? (isOwn && named ? author : undefined)} className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`} />
+        <PostAuthorLabel author={author} named={named} username={username ?? (isOwn && named ? author : undefined)} href={named ? isOwn ? "/profile" : `/user/${encodeURIComponent(username ?? author.toLowerCase())}` : undefined} className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`} />
         <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
       </div>
       {menu ? (
