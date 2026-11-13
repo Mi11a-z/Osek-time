@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -46,33 +47,59 @@ const navigationIconClass = "size-[27px] max-[1240px]:size-[23px]";
 export function FeedHeader({
   activeNav,
   onNavChange,
+  onHomeClick,
 }: {
   activeNav: NavTab;
   onNavChange: (tab: NavTab) => void;
+  onHomeClick: () => void;
 }) {
   return (
     <header className={headerClass}>
       <div className="shrink-0 max-[1000px]:text-center">
-        <h1 className={logoClass}>Osek Time</h1>
-        <p className={captionClass}>Обсуждают в Казахстане</p>
+        <Link
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            onHomeClick();
+          }}
+          className="no-underline text-inherit inline-block"
+        >
+          <h1 className={logoClass}>Osek Time</h1>
+          <p className={captionClass}>Обсуждают в Казахстане</p>
+        </Link>
       </div>
+
       <nav className={navigationClass} aria-label="Основная навигация">
         {navigation.map((item) => {
           const active = item.name === activeNav;
+
           return (
             <button
               key={item.name}
               type="button"
               onClick={() => onNavChange(item.name)}
-              className={`${navigationItemClass} ${active ? "text-coral-deep border-coral" : "text-inherit border-transparent"}`}
+              className={`${navigationItemClass} ${
+                active
+                  ? "text-coral-deep border-coral"
+                  : "text-inherit border-transparent"
+              }`}
               aria-current={active ? "page" : undefined}
             >
-              <Icon name={item.icon} className={`${navigationIconClass} ${active && item.icon === "home" ? "fill-current" : ""}`} />
+              <Icon
+                name={item.icon}
+                className={`${navigationIconClass} ${
+                  active && item.icon === "home" ? "fill-current" : ""
+                }`}
+              />
               <span>{item.name}</span>
             </button>
           );
         })}
-        <Link href="/profile" className={`${navigationItemClass} text-inherit border-transparent`}>
+
+        <Link
+          href="/profile"
+          className={`${navigationItemClass} text-inherit border-transparent`}
+        >
           <Icon name="user" className={navigationIconClass} />
           <span>Профиль</span>
         </Link>
