@@ -13,14 +13,18 @@ import { BackHeader } from "../ui/BackHeader";
 import { PostActions } from "./PostActions";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { PostAuthorLabel } from "./PostAuthorLabel";
+import { useRouter } from "next/navigation";
+import { renderTextWithHashtags } from "@/src/hashtag";
+
 
 const detailAvatarClass = "[width:var(--avatars-detail-size)] [height:var(--avatars-detail-size)] [border-radius:var(--radii-round)] object-cover shrink-0";
 
+
 export function PostDetail({ postId }: { postId: number }) {
+  const router = useRouter();
   const { likes, isLiked, isSaved, comments, toggleLike, toggleSave, addComment, deleteComment } = usePostInteractions(postId);
   const { posts, profile, ready: localReady, error } = useLocalData();
   const post = posts.find((item) => item.id === postId);
-
   const { ready, role, removed, blocked } = useModeration();
   const [reporting, setReporting] = useState(false);
   // Сохраняем прежнюю связь собственных публикаций с жалобами и блокировками.
@@ -51,7 +55,7 @@ export function PostDetail({ postId }: { postId: number }) {
         </header>
 
         <span className="inline-block px-3 py-1.5 [border-radius:var(--radii-tag)] bg-peach text-coral-deep [font-weight:var(--font-weights-bold)] [font-size:var(--font-sizes-meta)]"># {post.city}</span>
-        {post.text.trim() && <p className={`mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] ${post.question ? "font-display [font-size:var(--font-sizes-post-heading)] [font-weight:var(--font-weights-heavy)] leading-[1.15] max-[650px]:[font-size:var(--font-sizes-heading-large)]" : "[font-size:var(--font-sizes-title-small)] leading-[1.5]"}`}>{post.text}</p>}
+        {renderTextWithHashtags(post.text, (tag) => router.push(`/?tag=${encodeURIComponent(tag)}`))}
         {post.question && <p className="mt-3 font-display [font-size:var(--font-sizes-title)]">{post.question}</p>}
 
         {post.image && (

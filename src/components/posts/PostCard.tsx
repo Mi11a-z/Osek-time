@@ -12,10 +12,12 @@ import { PostActions } from "./PostActions";
 import { PostMenu } from "../profile/PostMenu";
 import { ReportDialog } from "./ReportDialog";
 import { blockUser, removePost, useModeration } from "../../moderation";
+import { renderTextWithHashtags } from "@/src/hashtag";
 
 type PostCardProps = {
   post: LocalPost;
   variant: "featured" | "photo" | "short";
+  onHashtagClick?: (tag: string) => void;
 };
 
 const linkClass = "whitespace-pre-wrap [overflow-wrap:anywhere] text-inherit no-underline focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4";
@@ -24,7 +26,7 @@ const compactCardClass = "[border:var(--borders-thin)_solid_var(--colors-card-bo
 const featuredTagClass = "mt-[18px] py-1 [font-size:var(--font-sizes-body-large)] max-[480px]:mt-3.5 max-[480px]:[font-size:var(--font-sizes-input)]";
 const compactTagClass = "mt-2 py-0.5 [font-size:var(--font-sizes-body)]";
 
-export function PostCard({ post, variant }: PostCardProps) {
+export function PostCard({ post, variant, onHashtagClick }: PostCardProps)  {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
   const [pollSelection, setPollSelection] = useState<number[]>([]);
@@ -93,14 +95,14 @@ export function PostCard({ post, variant }: PostCardProps) {
           <span className="font-display [font-weight:var(--font-weights-bold)] [font-size:var(--headings-quote-mark)] leading-[0.95] text-coral tracking-[-0.09em] max-[1240px]:[font-size:var(--headings-quote-mark-at1240)] max-[1000px]:[font-size:var(--headings-quote-mark-at1000)] max-[800px]:[font-size:var(--headings-quote-mark-at800)] max-[480px]:[font-size:var(--headings-quote-mark-at480)]" aria-hidden="true">“</span>
           <div>
             <p className="font-display [font-size:var(--headings-quote)] [font-weight:var(--font-weights-heavy)] [line-height:var(--headings-quote-line-height)] [letter-spacing:var(--headings-quote-letter-spacing)] text-pretty max-[1240px]:[font-size:var(--headings-quote-at1240)] max-[1000px]:[font-size:var(--headings-quote-at1000)] max-[800px]:[font-size:var(--headings-quote-at800)] max-[480px]:[font-size:var(--headings-quote-at480)] max-[480px]:[line-height:var(--headings-quote-line-height-at480)]">
-              <Link href={href} className={linkClass} onClick={(event) => event.stopPropagation()}>{post.text}</Link>
+              <Link href={href} className={linkClass} onClick={(event) => event.stopPropagation()}>{renderTextWithHashtags(post.text, onHashtagClick)}</Link>
             </p>
             {post.question && <p className="[margin-top:var(--headings-question-gap)] font-display [font-size:var(--headings-question)] [font-weight:var(--font-weights-medium)] [line-height:var(--headings-question-line-height)] tracking-[-0.035em] max-[1240px]:[font-size:var(--headings-question-at1240)] max-[1000px]:[font-size:var(--headings-question-at1000)] max-[800px]:[font-size:var(--headings-question-at800)] max-[480px]:[font-size:var(--headings-question-at480)] max-[480px]:[margin-top:var(--headings-question-gap-at480)]">{post.question}</p>}
           </div>
         </blockquote>
       ) : null) : post.text.trim() ? (
         <p className={`[font-weight:var(--font-weights-medium)] [line-height:var(--cards-text-line-height)] tracking-[-0.025em] ${copySize}`}>
-          <Link href={href} className={linkClass} onClick={(event) => event.stopPropagation()}>{post.text}</Link>
+          <Link href={href} className={linkClass} onClick={(event) => event.stopPropagation()}>{renderTextWithHashtags(post.text, onHashtagClick)}</Link>
         </p>
       ) : null}
 

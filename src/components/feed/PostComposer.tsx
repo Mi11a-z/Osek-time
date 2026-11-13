@@ -58,6 +58,7 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
   const [open, setOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [publishFailed, setPublishFailed] = useState(false);
   const { ready, profile, error } = useLocalData();
   const { ready: moderationReady, blocked } = useModeration();
@@ -120,6 +121,7 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
       <label className="relative block min-w-0">
         <Icon name="pencil" className={pencilClass} />
         <textarea
+          ref={textAreaRef}
           className={fieldClass}
           rows={1}
           maxLength={5000}
@@ -134,6 +136,16 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
         <input ref={fileInput} type="file" accept="image/*" className="sr-only" onChange={handleImage} aria-label="Выбрать фотографию" />
         <button type="button" onClick={() => fileInput.current?.click()} className="cursor-pointer rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral">Добавить фото</button>
         <span className="text-xs text-muted">До 4 МБ</span>
+        <button
+          type="button"
+          onClick={() => {
+            setPostText((prev) => (prev && !prev.endsWith(" ") && !prev.endsWith("\n") ? `${prev} #` : `${prev}#`));
+            textAreaRef.current?.focus();
+          }}
+          className="cursor-pointer rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral"
+        >
+          ＋ Добавить хэштег
+        </button>
         {image && <div className="relative size-24 shrink-0">
           <button type="button" onClick={() => setImagePreviewOpen(true)} aria-label="Открыть предпросмотр фотографии" className="absolute inset-0 overflow-hidden rounded-xl border border-line bg-ink/5 focus-visible:outline-2 focus-visible:outline-coral">
             <Image src={image} alt="Предпросмотр фотографии" fill unoptimized className="object-cover" sizes="96px" />

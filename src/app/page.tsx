@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { FeedHeader, type NavTab } from "../components/feed/FeedHeader";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
@@ -17,7 +18,7 @@ const feedClass = `grid w-full mx-auto items-start [grid-template-columns:var(--
   [gap:var(--layout-feed-gap)] [margin-top:var(--layout-feed-top)] [max-width:var(--layout-posts-max-width)]
   max-[800px]:[gap:var(--layout-feed-gap-at800)]`;
 
-export default function Home() {
+function FeedContent() {
   const [activeNav, setActiveNav] = useState<NavTab>("Лента");
   const [activeCity, setActiveCity] = useState("Все города");
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,6 +26,14 @@ export default function Home() {
   const { ready: moderationReady, removed, blocked } = useModeration();
   const ready = localReady && moderationReady;
   const ownBlocked = blocked.includes(profile.username) || blocked.includes(profile.name);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tag = searchParams.get("tag");
+    if (tag) {
+      setSearchQuery(`#${tag}`);
+    }
+  }, [searchParams]);
 
   let filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase();
@@ -40,8 +49,18 @@ export default function Home() {
     filteredPosts = [...filteredPosts].sort((a, b) => b.likes - a.likes);
   }
 
+  const handleHashtagClick = (tag: string) => {
+    const tagQuery = `#${tag}`;
+    setActiveNav("Лента");
+    if (searchQuery.toLowerCase() === tagQuery) {
+      setSearchQuery("");
+    } else {
+      setSearchQuery(tagQuery);
+    }
+  };
+
   return (
-    <main className={shellClass}>
+    <>
       <FeedHeader activeNav={activeNav} onNavChange={setActiveNav} />
       <FeedToolbar
         activeCity={activeCity}
@@ -51,6 +70,18 @@ export default function Home() {
       />
       <PostComposer city={activeCity === "Все города" ? profile.city : activeCity} onPublished={() => { setActiveNav("Лента"); setActiveCity("Все города"); setSearchQuery(""); }} />
       {error && <p role="alert" className="mx-auto mt-4 [max-width:var(--layout-posts-max-width)] rounded-xl bg-peach p-4 text-coral-deep">{error}</p>}
+      {searchQuery.startsWith("#") && (
+        <div className="mx-auto mt-4 flex items-center justify-between [max-width:var(--layout-posts-max-width)] rounded-xl bg-peach/50 px-4 py-2 text-sm text-coral-deep">
+          <span>Фильтр по хэштегу: <b>{searchQuery}</b></span>
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="font-medium hover:underline cursor-pointer"
+          >
+            Сбросить ✕
+          </button>
+        </div>
+      )}
       <section className={feedClass} aria-label="Лента публикаций">
         {!ready && <p role="status" className="py-[30px] text-center text-muted">Загружаем публикации…</p>}
         {ready && filteredPosts.length === 0 && (
@@ -59,13 +90,24 @@ export default function Home() {
           </p>
         )}
         {filteredPosts.map((post, index) => (
-            <PostCard
+          <PostCard
             key={post.id}
             post={post}
-              variant={index === 0 ? "featured" : post.image ? "photo" : "short"}
+            variant={index === 0 ? "featured" : post.image ? "photo" : "short"}
+            onHashtagClick={handleHashtagClick}
           />
         ))}
       </section>
+    </>
+  );
+}
+
+export default function Home() {
+  return (
+    <main className={shellClass}>
+      <Suspense fallback={<p className="py-10 text-center text-muted">Загрузка...</p>}>
+        <FeedContent />
+      </Suspense>
     </main>
   );
 }
