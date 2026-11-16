@@ -118,6 +118,12 @@ function FeedContent({ section }: { section: FeedSection }) {
     updateTagInUrl(null);
   };
 
+  const handleCityClick = (city: string) => {
+    setActiveCity(city);
+    setSearchQuery("");
+    if (searchParams.has("tag")) updateTagInUrl(null);
+  };
+
   // Создание публикации
   const handlePublished = () => {
     setActiveCity("Все города");
@@ -238,6 +244,7 @@ function FeedContent({ section }: { section: FeedSection }) {
             post={post}
             variant={post.image ? "photo" : "short"}
             onHashtagClick={handleHashtagClick}
+            onCityClick={handleCityClick}
           />
         ))}
       </section>

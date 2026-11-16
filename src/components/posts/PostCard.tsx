@@ -20,13 +20,14 @@ type PostCardProps = {
   post: LocalPost;
   variant: "featured" | "photo" | "short";
   onHashtagClick?: (tag: string) => void;
+  onCityClick?: (city: string) => void;
 };
 
 const linkClass = "whitespace-pre-wrap [overflow-wrap:anywhere] text-inherit no-underline focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4";
 const featuredCardClass = "flex flex-col [padding:var(--cards-featured-padding)] [border:var(--borders-featured)_solid_var(--ink)] max-[1240px]:[padding:var(--cards-featured-padding-at1240)] max-[800px]:[padding:var(--cards-featured-padding-at800)] max-[480px]:[padding:var(--cards-featured-padding-at480)]";
 const compactCardClass = "[border:var(--borders-thin)_solid_var(--colors-card-border)] [padding:var(--cards-compact-padding)] max-[1000px]:[padding:var(--cards-compact-padding-at1000)] max-[800px]:[padding:var(--cards-compact-padding-at800)] max-[480px]:[padding:var(--cards-compact-padding-at480)]";
 
-export function PostCard({ post, variant, onHashtagClick }: PostCardProps) {
+export function PostCard({ post, variant, onHashtagClick, onCityClick }: PostCardProps) {
   const router = useRouter();
   const [showComments, setShowComments] = useState(false);
   const [pollSelection, setPollSelection] = useState<number[]>([]);
@@ -77,6 +78,7 @@ export function PostCard({ post, variant, onHashtagClick }: PostCardProps) {
         isOwn={post.isOwn}
         username={post.authorUsername}
         city={post.city}
+        onCityClick={onCityClick}
         minutes={post.minutes}
         variant={featured ? "featured" : "compact"}
         menu={

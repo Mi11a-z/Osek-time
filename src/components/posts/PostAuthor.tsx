@@ -15,9 +15,10 @@ type PostAuthorProps = {
   minutes: number;
   variant?: "featured" | "compact";
   menu?: ReactNode;
+  onCityClick?: (city: string) => void;
 };
 
-export function PostAuthor({ author, avatar, named, isOwn = false, username, city, minutes, variant = "compact", menu }: PostAuthorProps) {
+export function PostAuthor({ author, avatar, named, isOwn = false, username, city, minutes, variant = "compact", menu, onCityClick }: PostAuthorProps) {
   const featured = variant === "featured";
   const avatarSize = featured
     ? "[width:var(--avatars-featured-size)] [height:var(--avatars-featured-size)] max-[1000px]:[width:var(--avatars-featured-size-at1000)] max-[1000px]:[height:var(--avatars-featured-size-at1000)] max-[480px]:[width:var(--avatars-featured-size-at480)] max-[480px]:[height:var(--avatars-featured-size-at480)]"
@@ -41,7 +42,19 @@ export function PostAuthor({ author, avatar, named, isOwn = false, username, cit
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
         <PostAuthorLabel author={author} named={named} username={username ?? (isOwn && named ? author : undefined)} href={named ? isOwn ? "/profile" : `/user/${encodeURIComponent(username ?? author.toLowerCase())}` : undefined} className={`[font-weight:var(--font-weights-heavy)] leading-[1.3] tracking-[-0.03em] ${nameSize}`} />
-        <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>{city}<span aria-hidden="true"> · </span>{minutes} мин</span>
+        <span className={`text-muted leading-[1.45] whitespace-nowrap ${metaSize}`}>
+          {onCityClick ? (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onCityClick(city); }}
+              className="cursor-pointer border-0 bg-transparent p-0 text-inherit underline decoration-transparent underline-offset-2 hover:decoration-current focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-2"
+              aria-label={`Показать посты из города ${city}`}
+            >
+              {city}
+            </button>
+          ) : city}
+          <span aria-hidden="true"> · </span>{minutes} мин
+        </span>
       </div>
       {menu ? (
         <div className="ml-auto" onClick={(event) => event.stopPropagation()}>{menu}</div>
