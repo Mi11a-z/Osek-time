@@ -4,8 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BackHeader } from "../ui/BackHeader";
-import { useLocalData } from "../../data/local-store";
-import { posts as samplePosts } from "../../data/posts";
+import { useLocalData, type LocalPost } from "../../data/local-store";
+import { posts as samplePosts, type Post } from "../../data/posts";
 import {
   blockUser,
   dismissReport,
@@ -40,6 +40,8 @@ const sectionTitles: Record<AdminSection, string> = {
 };
 
 const pillClass = "cursor-pointer rounded-[var(--radii-pill)] border-solid px-4 py-2 [border-width:var(--borders-thin)] [font-weight:var(--font-weights-bold)]";
+const adminCardClass = "rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6";
+const adminPostPreviewClass = "mt-3 rounded-xl bg-peach/40 px-4 py-3 [overflow-wrap:anywhere]";
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -172,7 +174,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
         removed.length === 0 ? <p className="py-[50px] text-center text-muted">Удалённых публикаций нет.</p> : (
           <ul className="m-0 grid list-none gap-3 p-0">
             {removed.map((id) => (
-              <li key={id} className="rounded-xl border border-line bg-surface p-5">
+              <li key={id} className={adminCardClass}>
                 {(() => {
                   const post = allPosts.find((item) => item.id === id);
                   const removedEvent = history.find((event) => event.postId === id && event.action === "post_removed");
@@ -186,7 +188,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
                       </div>
                       <button type="button" onClick={() => restorePost(id)} className={`${pillClass} border-line bg-transparent hover:border-coral`}>Восстановить</button>
                     </div>
-                    {(post?.text || removedEvent?.postText || post?.question) && <p className="mb-0 mt-3 whitespace-pre-wrap [overflow-wrap:anywhere]">{post?.text || removedEvent?.postText || post?.question}</p>}
+                    {(post?.text || removedEvent?.postText || post?.question) && <p className={`${adminPostPreviewClass} whitespace-pre-wrap`}>{post?.text || removedEvent?.postText || post?.question}</p>}
                     {post?.image && <Image src={post.image} alt={post.imageAlt ?? "Изображение из удалённой публикации"} width={1200} height={800} unoptimized className="mt-3 max-h-96 w-full rounded-xl object-contain" />}
                     {poll && <p className="mb-0 mt-3 rounded-xl bg-peach/40 p-3">Опрос: {poll.question}</p>}
                     {!post && !removedEvent?.postText && <p className="mb-0 mt-3 text-sm text-muted">Текст этой публикации недоступен в локальных данных.</p>}
@@ -202,7 +204,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
         ) : (
           <ul className="m-0 grid list-none gap-3 p-0">
             {blocked.map((id) => (
-              <li key={id} className="flex items-center justify-between gap-3 rounded-[var(--cards-profile-radius)] border-solid border-line bg-surface px-5 py-4 [border-width:var(--borders-thin)]">
+              <li key={id} className={`flex items-center justify-between gap-3 ${adminCardClass}`}>
                 <span className="[font-weight:var(--font-weights-bold)]">{id}</span>
                 <button type="button" onClick={() => unblockUser(id)} className={`${pillClass} border-line bg-transparent hover:border-coral`}>
                   Разблокировать
@@ -214,7 +216,13 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
       ) : section === "history" ? (
         historyItems.length === 0 ? <p className="py-[50px] text-center text-muted">История появится после жалоб и действий модератора.</p> : (
           <ul className="m-0 grid list-none gap-3 p-0">
-            {historyItems.map((event) => <HistoryCard key={event.id} event={event} />)}
+            {historyItems.map((event) => (
+              <HistoryCard
+                key={event.id}
+                event={event}
+                post={allPosts.find((post) => post.id === event.postId)}
+              />
+            ))}
           </ul>
         )
       ) : section === "new" || section === "done" ? visible.length === 0 ? (
@@ -242,7 +250,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
 
 function DashCard({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-[var(--radii-panel)] border border-line bg-surface p-5 sm:p-6">
+    <div className={adminCardClass}>
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="m-0 font-display text-xl font-bold">{title}</h2>
         {note && <span className="text-sm text-muted">{note}</span>}
@@ -268,20 +276,23 @@ const historyLabels: Record<ModerationEvent["action"], string> = {
   user_unblocked: "Блокировка снята",
 };
 
-function HistoryCard({ event }: { event: ModerationEvent }) {
+function HistoryCard({ event, post }: { event: ModerationEvent; post?: LocalPost | Post }) {
   const reason = event.reason && reportReasons.find((entry) => entry.id === event.reason);
+  const authorLabel = event.targetLabel || post?.author;
+  const postText = event.postText || post?.text || post?.question;
   return (
-    <li className="rounded-[var(--cards-profile-radius)] border-solid border-line bg-surface p-5 [border-width:var(--borders-thin)]">
+    <li className={adminCardClass}>
       <div className="flex flex-wrap items-center gap-2">
         <strong>{historyLabels[event.action]}</strong>
         <span className="ml-auto text-sm text-muted">{formatDate(event.createdAt)}</span>
       </div>
-      {event.targetLabel && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>{event.targetLabel}</strong>{event.targetId ? ` · @${event.targetId}` : " · анонимный автор"}</p>}
-      {!event.targetLabel && event.targetId && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>@{event.targetId}</strong></p>}
+      {authorLabel && <p className="mb-0 mt-2 text-sm">Автор поста: <strong>{authorLabel}</strong>{event.targetId ? ` · @${event.targetId}` : post?.named === false ? " · анонимно" : ""}</p>}
+      {!authorLabel && event.targetId && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>@{event.targetId}</strong></p>}
       <p className="mb-0 mt-1 text-sm text-muted">
         {event.description}{reason ? ` · причина: ${reason.label}` : ""}{event.postId ? ` · пост №${event.postId}` : ""}
       </p>
-      {event.postText && <p className="mb-0 mt-3 whitespace-pre-wrap rounded-xl bg-peach/40 p-3 [overflow-wrap:anywhere]">{event.postText}</p>}
+      {postText && <p className={`${adminPostPreviewClass} whitespace-pre-wrap`}>{postText}</p>}
+      {post?.image && <Image src={post.image} alt={post.imageAlt ?? "Изображение публикации"} width={1200} height={800} unoptimized className="mt-3 max-h-96 w-full rounded-xl object-contain" />}
     </li>
   );
 }
@@ -301,7 +312,7 @@ function ReportCard({
   const isNew = report.status === "new";
 
   return (
-    <li className="rounded-[var(--cards-profile-radius)] border-solid border-line bg-surface [padding:var(--cards-profile-padding)] [border-width:var(--borders-thin)]">
+    <li className={adminCardClass}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-[var(--radii-tag)] bg-peach px-3 py-1.5 text-coral-deep [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]">
           {reason?.label ?? report.reason}
@@ -318,7 +329,7 @@ function ReportCard({
       )}
       <p className="mt-1 text-muted [font-size:var(--font-sizes-meta)]">Отправил: @{report.reporter}</p>
 
-      <blockquote className="mx-0 mb-0 mt-3 rounded-xl border-0 bg-peach/40 px-4 py-3">
+      <blockquote className={`${adminPostPreviewClass} mx-0 mb-0 border-0`}>
         <span className="block [font-weight:var(--font-weights-bold)]">
           {report.authorId ? report.postAuthor : "Анонимный автор"}
           {authorBlocked && <span className="ml-2 text-coral-deep [font-size:var(--font-sizes-meta)]">· заблокирован</span>}
