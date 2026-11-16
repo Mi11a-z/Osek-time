@@ -232,17 +232,11 @@ function FeedContent({ section }: { section: FeedSection }) {
           </p>
         )}
 
-        {filteredPosts.map((post, index) => (
+        {filteredPosts.map((post) => (
           <PostCard
             key={post.id}
             post={post}
-            variant={
-              index === 0
-                ? "featured"
-                : post.image
-                  ? "photo"
-                  : "short"
-            }
+            variant={post.image ? "photo" : "short"}
             onHashtagClick={handleHashtagClick}
           />
         ))}
