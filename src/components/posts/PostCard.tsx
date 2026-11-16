@@ -25,8 +25,6 @@ type PostCardProps = {
 const linkClass = "whitespace-pre-wrap [overflow-wrap:anywhere] text-inherit no-underline focus-visible:[outline:var(--borders-focus)_solid_var(--coral)] focus-visible:outline-offset-4";
 const featuredCardClass = "flex flex-col [padding:var(--cards-featured-padding)] [border:var(--borders-featured)_solid_var(--ink)] max-[1240px]:[padding:var(--cards-featured-padding-at1240)] max-[800px]:[padding:var(--cards-featured-padding-at800)] max-[480px]:[padding:var(--cards-featured-padding-at480)]";
 const compactCardClass = "[border:var(--borders-thin)_solid_var(--colors-card-border)] [padding:var(--cards-compact-padding)] max-[1000px]:[padding:var(--cards-compact-padding-at1000)] max-[800px]:[padding:var(--cards-compact-padding-at800)] max-[480px]:[padding:var(--cards-compact-padding-at480)]";
-const featuredTagClass = "mt-[18px] py-1 [font-size:var(--font-sizes-body-large)] max-[480px]:mt-3.5 max-[480px]:[font-size:var(--font-sizes-input)]";
-const compactTagClass = "mt-2 py-0.5 [font-size:var(--font-sizes-body)]";
 
 export function PostCard({ post, variant, onHashtagClick }: PostCardProps) {
   const router = useRouter();
@@ -85,14 +83,12 @@ export function PostCard({ post, variant, onHashtagClick }: PostCardProps) {
           <PostMenu
             variant="header"
             onReport={() => setReporting(true)}
-            onDelete={post.isOwn ? () => saveAction(() => deleteLocalPost(post.id)) : isAdmin ? () => removePost(post.id) : undefined}
+            onDelete={post.isOwn ? () => saveAction(() => deleteLocalPost(post.id)) : isAdmin ? () => removePost(post.id, { authorId, author: post.author, postText: post.text }) : undefined}
             deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"}
-            onBlockAuthor={isAdmin && authorId ? () => blockUser(authorId) : undefined}
+            onBlockAuthor={isAdmin && authorId ? () => blockUser(authorId, post.author) : undefined}
           />
         }
       />
-      <span className={`table w-fit px-3 [border-radius:var(--radii-tag)] bg-peach [color:var(--colors-tag-text)] [font-weight:var(--font-weights-semibold)] leading-[1.45] ${featured ? featuredTagClass : compactTagClass}`}># {post.city}</span>
-
       {featured ? (post.text.trim() || post.question ? (
         <blockquote className="mt-[22px] grid [grid-template-columns:var(--cards-quote-columns)] [gap:var(--cards-quote-gap)] [margin-bottom:var(--cards-quote-bottom)] min-[1600px]:mt-7 max-[1240px]:[grid-template-columns:var(--cards-quote-columns-at1240)] max-[1240px]:[gap:var(--cards-quote-gap-at1240)] max-[1000px]:mt-3.5 max-[800px]:[grid-template-columns:var(--cards-quote-columns-at800)] max-[800px]:[gap:var(--cards-quote-gap-at800)] max-[800px]:[margin-block:20px_35px] max-[480px]:[grid-template-columns:var(--cards-quote-columns-at480)] max-[480px]:[gap:var(--cards-quote-gap-at480)] max-[480px]:[margin-block:20px_30px]">
           <span className="font-display [font-weight:var(--font-weights-bold)] [font-size:var(--headings-quote-mark)] leading-[0.95] text-coral tracking-[-0.09em] max-[1240px]:[font-size:var(--headings-quote-mark-at1240)] max-[1000px]:[font-size:var(--headings-quote-mark-at1000)] max-[800px]:[font-size:var(--headings-quote-mark-at800)] max-[480px]:[font-size:var(--headings-quote-mark-at480)]" aria-hidden="true">“</span>

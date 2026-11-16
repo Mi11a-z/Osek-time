@@ -25,8 +25,14 @@ const feedClass = `grid w-full mx-auto items-start [grid-template-columns:var(--
   [gap:var(--layout-feed-gap)] [margin-top:var(--layout-feed-top)] [max-width:var(--layout-posts-max-width)]
   max-[800px]:[gap:var(--layout-feed-gap-at800)]`;
 
-function FeedContent() {
-  const [activeNav, setActiveNav] = useState<NavTab>("Лента");
+type FeedSection = "feed" | "popular" | "saved";
+
+function FeedContent({ section }: { section: FeedSection }) {
+  const activeNav: NavTab = section === "popular"
+    ? "Популярное"
+    : section === "saved"
+      ? "Сохранённое"
+      : "Лента";
   const [activeCity, setActiveCity] = useState("Все города");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -101,7 +107,6 @@ function FeedContent() {
       setSearchQuery("");
       updateTagInUrl(null);
     } else {
-      setActiveNav("Лента");
       setSearchQuery(`#${cleanTag}`);
       updateTagInUrl(cleanTag);
     }
@@ -113,22 +118,11 @@ function FeedContent() {
     updateTagInUrl(null);
   };
 
-  // ГЛАВНОЕ: сброс всех фильтров при нажатии Osek Time
-  const handleHomeClick = () => {
-    setActiveNav("Лента");
-    setActiveCity("Все города");
-    setSearchQuery("");
-
-    // Удаляем ВСЕ параметры из URL
-    router.replace(pathname, { scroll: false });
-  };
-
   // Создание публикации
   const handlePublished = () => {
-    setActiveNav("Лента");
     setActiveCity("Все города");
     setSearchQuery("");
-    updateTagInUrl(null);
+    router.push("/");
   };
 
   // Фильтрация публикаций
@@ -154,14 +148,14 @@ function FeedContent() {
   });
 
   // Сохранённое
-  if (activeNav === "Сохранённое") {
+  if (section === "saved") {
     filteredPosts = filteredPosts.filter(
       (post) => post.saved
     );
   }
 
   // Популярное
-  if (activeNav === "Популярное") {
+  if (section === "popular") {
     filteredPosts = [...filteredPosts].sort(
       (a, b) => b.likes - a.likes
     );
@@ -171,8 +165,6 @@ function FeedContent() {
     <>
       <FeedHeader
         activeNav={activeNav}
-        onNavChange={setActiveNav}
-        onHomeClick={handleHomeClick}
       />
 
       <FeedToolbar
@@ -259,7 +251,7 @@ function FeedContent() {
   );
 }
 
-export default function Home() {
+export function FeedPage({ section }: { section: FeedSection }) {
   return (
     <main className={shellClass}>
       <Suspense
@@ -269,8 +261,12 @@ export default function Home() {
           </p>
         }
       >
-        <FeedContent />
+        <FeedContent section={section} />
       </Suspense>
     </main>
   );
+}
+
+export default function Home() {
+  return <FeedPage section="feed" />;
 }

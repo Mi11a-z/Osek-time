@@ -54,10 +54,9 @@ export function PostDetail({ postId }: { postId: number }) {
             <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} href={authorHref} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
             <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {post.minutes} мин</span>
           </div>
-          <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId) : undefined} />
+          <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id, { authorId, author: post.author, postText: post.text }) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId, post.author) : undefined} />
         </header>
 
-        <span className="inline-block px-3 py-1.5 [border-radius:var(--radii-tag)] bg-peach text-coral-deep [font-weight:var(--font-weights-bold)] [font-size:var(--font-sizes-meta)]"># {post.city}</span>
         {renderTextWithHashtags(post.text, (tag) => router.push(`/?tag=${encodeURIComponent(tag)}`))}
         {post.question && <p className="mt-3 font-display [font-size:var(--font-sizes-title)]">{post.question}</p>}
 

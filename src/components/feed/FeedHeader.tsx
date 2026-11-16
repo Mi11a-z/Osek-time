@@ -6,10 +6,10 @@ import { Icon, type IconName } from "../ui/Icon";
 
 export type NavTab = "Лента" | "Популярное" | "Сохранённое";
 
-const navigation: { name: NavTab; icon: IconName }[] = [
-  { name: "Лента", icon: "home" },
-  { name: "Популярное", icon: "flame" },
-  { name: "Сохранённое", icon: "bookmark" },
+const navigation: { name: NavTab; icon: IconName; href: string }[] = [
+  { name: "Лента", icon: "home", href: "/" },
+  { name: "Популярное", icon: "flame", href: "/popular" },
+  { name: "Сохранённое", icon: "bookmark", href: "/saved" },
 ];
 
 const headerClass = `flex items-end justify-between [gap:var(--layout-header-gap)]
@@ -46,22 +46,14 @@ const navigationIconClass = "size-[27px] max-[1240px]:size-[23px]";
 
 export function FeedHeader({
   activeNav,
-  onNavChange,
-  onHomeClick,
 }: {
   activeNav: NavTab;
-  onNavChange: (tab: NavTab) => void;
-  onHomeClick: () => void;
 }) {
   return (
     <header className={headerClass}>
       <div className="shrink-0 max-[1000px]:text-center">
         <Link
           href="/"
-          onClick={(event) => {
-            event.preventDefault();
-            onHomeClick();
-          }}
           className="no-underline text-inherit inline-block"
         >
           <h1 className={logoClass}>Osek Time</h1>
@@ -74,10 +66,9 @@ export function FeedHeader({
           const active = item.name === activeNav;
 
           return (
-            <button
+            <Link
               key={item.name}
-              type="button"
-              onClick={() => onNavChange(item.name)}
+              href={item.href}
               className={`${navigationItemClass} ${
                 active
                   ? "text-coral-deep border-coral"
@@ -92,7 +83,7 @@ export function FeedHeader({
                 }`}
               />
               <span>{item.name}</span>
-            </button>
+            </Link>
           );
         })}
 

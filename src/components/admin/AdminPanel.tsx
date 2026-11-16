@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BackHeader } from "../ui/BackHeader";
 import { useLocalData } from "../../data/local-store";
@@ -15,15 +16,17 @@ import {
   unblockUser,
   useModeration,
   type Report,
+  type ModerationEvent,
 } from "../../moderation";
 
-type AdminTab = "new" | "done" | "blocked" | "removed";
+type AdminTab = "new" | "done" | "blocked" | "removed" | "history";
 
 const tabs: { id: AdminTab; label: string }[] = [
   { id: "new", label: "Новые жалобы" },
   { id: "done", label: "Обработанные" },
   { id: "removed", label: "Удалённые посты" },
   { id: "blocked", label: "Заблокированные" },
+  { id: "history", label: "История действий" },
 ];
 
 const pillClass = "cursor-pointer rounded-[var(--radii-pill)] border-solid px-4 py-2 [border-width:var(--borders-thin)] [font-weight:var(--font-weights-bold)]";
@@ -33,7 +36,7 @@ function formatDate(ts: number) {
 }
 
 export function AdminPanel() {
-  const { ready, role, reports, removed, blocked } = useModeration();
+  const { ready, role, reports, removed, blocked, history } = useModeration();
   const localData = useLocalData();
   const [tab, setTab] = useState<AdminTab>("new");
   const [now, setNow] = useState<number | null>(null);
@@ -59,10 +62,21 @@ export function AdminPanel() {
   const newReports = reports.filter((r) => r.status === "new");
   const doneReports = reports.filter((r) => r.status !== "new");
   const visible = tab === "new" ? newReports : doneReports;
-  const posts = [
+  const recordedReports = new Set(history.filter((event) => event.action === "report_received").map((event) => event.reportId));
+  const historyItems: ModerationEvent[] = [
+    ...history,
+    ...reports.filter((report) => !recordedReports.has(report.id)).map((report): ModerationEvent => ({
+      id: `${report.id}:legacy`, createdAt: report.createdAt, action: "report_received",
+      targetId: report.authorId, targetLabel: report.postAuthor, postId: report.postId,
+      reportId: report.id, reason: report.reason, postText: report.postText,
+      description: `Ранее поступила жалоба от @${report.reporter}${report.resolution ? ` · ${report.resolution}` : ""}`,
+    })),
+  ].sort((a, b) => b.createdAt - a.createdAt);
+  const allPosts = [
     ...samplePosts.filter((post) => !localData.posts.some((localPost) => localPost.id === post.id)),
     ...localData.posts,
-  ].filter((post) => !removed.includes(post.id));
+  ];
+  const posts = allPosts.filter((post) => !removed.includes(post.id));
   const periods = [
     { id: "day", label: "Сегодня", since: now === null ? Infinity : new Date(new Date(now).setHours(0, 0, 0, 0)).getTime() },
     { id: "week", label: "7 дней", since: now === null ? Infinity : now - 7 * 24 * 60 * 60 * 1000 },
@@ -150,9 +164,26 @@ export function AdminPanel() {
         removed.length === 0 ? <p className="py-[50px] text-center text-muted">Удалённых публикаций нет.</p> : (
           <ul className="m-0 grid list-none gap-3 p-0">
             {removed.map((id) => (
-              <li key={id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-5">
-                <span>Публикация №{id}</span>
-                <button type="button" onClick={() => restorePost(id)} className={`${pillClass} border-line bg-transparent hover:border-coral`}>Восстановить</button>
+              <li key={id} className="rounded-xl border border-line bg-surface p-5">
+                {(() => {
+                  const post = allPosts.find((item) => item.id === id);
+                  const removedEvent = history.find((event) => event.postId === id && event.action === "post_removed");
+                  const poll = post && "poll" in post ? post.poll : undefined;
+                  return <>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <strong>{post?.named ? post.author : removedEvent?.targetLabel ?? "Анонимный автор"}</strong>
+                        {post && <span className="ml-2 text-sm text-muted">{post.city} · публикация №{id}</span>}
+                        {!post && <span className="ml-2 text-sm text-muted">Публикация №{id}</span>}
+                      </div>
+                      <button type="button" onClick={() => restorePost(id)} className={`${pillClass} border-line bg-transparent hover:border-coral`}>Восстановить</button>
+                    </div>
+                    {(post?.text || removedEvent?.postText || post?.question) && <p className="mb-0 mt-3 whitespace-pre-wrap [overflow-wrap:anywhere]">{post?.text || removedEvent?.postText || post?.question}</p>}
+                    {post?.image && <Image src={post.image} alt={post.imageAlt ?? "Изображение из удалённой публикации"} width={1200} height={800} unoptimized className="mt-3 max-h-96 w-full rounded-xl object-contain" />}
+                    {poll && <p className="mb-0 mt-3 rounded-xl bg-peach/40 p-3">Опрос: {poll.question}</p>}
+                    {!post && !removedEvent?.postText && <p className="mb-0 mt-3 text-sm text-muted">Текст этой публикации недоступен в локальных данных.</p>}
+                  </>;
+                })()}
               </li>
             ))}
           </ul>
@@ -170,6 +201,12 @@ export function AdminPanel() {
                 </button>
               </li>
             ))}
+          </ul>
+        )
+      ) : tab === "history" ? (
+        historyItems.length === 0 ? <p className="py-[50px] text-center text-muted">История появится после жалоб и действий модератора.</p> : (
+          <ul className="m-0 grid list-none gap-3 p-0">
+            {historyItems.map((event) => <HistoryCard key={event.id} event={event} />)}
           </ul>
         )
       ) : visible.length === 0 ? (
@@ -210,6 +247,33 @@ function Metric({ label, value }: { label: string; value: number | string }) {
     <strong className="font-display text-2xl">{value}</strong>
     <span className="break-words text-xs leading-tight text-muted">{label}</span>
   </div>;
+}
+
+const historyLabels: Record<ModerationEvent["action"], string> = {
+  report_received: "Поступила жалоба",
+  report_dismissed: "Жалоба отклонена",
+  post_removed: "Пост удалён из ленты",
+  post_restored: "Пост восстановлен",
+  user_blocked: "Аккаунт заблокирован",
+  user_unblocked: "Блокировка снята",
+};
+
+function HistoryCard({ event }: { event: ModerationEvent }) {
+  const reason = event.reason && reportReasons.find((entry) => entry.id === event.reason);
+  return (
+    <li className="rounded-[var(--cards-profile-radius)] border-solid border-line bg-surface p-5 [border-width:var(--borders-thin)]">
+      <div className="flex flex-wrap items-center gap-2">
+        <strong>{historyLabels[event.action]}</strong>
+        <span className="ml-auto text-sm text-muted">{formatDate(event.createdAt)}</span>
+      </div>
+      {event.targetLabel && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>{event.targetLabel}</strong>{event.targetId ? ` · @${event.targetId}` : " · анонимный автор"}</p>}
+      {!event.targetLabel && event.targetId && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>@{event.targetId}</strong></p>}
+      <p className="mb-0 mt-1 text-sm text-muted">
+        {event.description}{reason ? ` · причина: ${reason.label}` : ""}{event.postId ? ` · пост №${event.postId}` : ""}
+      </p>
+      {event.postText && <p className="mb-0 mt-3 whitespace-pre-wrap rounded-xl bg-peach/40 p-3 [overflow-wrap:anywhere]">{event.postText}</p>}
+    </li>
+  );
 }
 
 function ReportCard({
@@ -255,14 +319,14 @@ function ReportCard({
 
       {isNew ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={() => removePost(report.postId)} className={`${pillClass} border-coral bg-coral [color:var(--colors-white)] hover:bg-coral-deep`}>
+          <button type="button" onClick={() => removePost(report.postId, { authorId: report.authorId, author: report.postAuthor, postText: report.postText })} className={`${pillClass} border-coral bg-coral [color:var(--colors-white)] hover:bg-coral-deep`}>
             Удалить пост
           </button>
           <button
             type="button"
             disabled={!report.authorId}
             title={report.authorId ? undefined : "Автор анонимный — блокировка недоступна"}
-            onClick={() => report.authorId && blockUser(report.authorId)}
+            onClick={() => report.authorId && blockUser(report.authorId, report.postAuthor)}
             className={`${pillClass} border-ink bg-transparent hover:bg-ink hover:[color:var(--colors-white)] disabled:cursor-not-allowed disabled:opacity-50`}
           >
             Заблокировать автора

@@ -60,8 +60,6 @@ export function ProfilePostCard({
           <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {formatTime(post.minutes)}</span>
         </div>
       </header>
-      <span className="inline-block rounded-[var(--radii-tag)] bg-peach px-3 py-1.5 text-coral-deep [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-bold)]"># {post.city}</span>
-
       {editing ? (
         <div className="mt-3.5">
           <textarea
