@@ -19,15 +19,25 @@ import {
   type ModerationEvent,
 } from "../../moderation";
 
-type AdminTab = "new" | "done" | "blocked" | "removed" | "history";
+export type AdminSection = "overview" | "new" | "done" | "blocked" | "removed" | "history";
 
-const tabs: { id: AdminTab; label: string }[] = [
-  { id: "new", label: "Новые жалобы" },
-  { id: "done", label: "Обработанные" },
-  { id: "removed", label: "Удалённые посты" },
-  { id: "blocked", label: "Заблокированные" },
-  { id: "history", label: "История действий" },
+const navigation: { id: AdminSection; label: string; href: string }[] = [
+  { id: "overview", label: "Обзор", href: "/admin" },
+  { id: "new", label: "Новые жалобы", href: "/admin/reports/new" },
+  { id: "done", label: "Обработанные", href: "/admin/reports/done" },
+  { id: "removed", label: "Удалённые посты", href: "/admin/posts/removed" },
+  { id: "blocked", label: "Заблокированные", href: "/admin/users/blocked" },
+  { id: "history", label: "История действий", href: "/admin/history" },
 ];
+
+const sectionTitles: Record<AdminSection, string> = {
+  overview: "Админ-панель",
+  new: "Новые жалобы",
+  done: "Обработанные жалобы",
+  removed: "Удалённые посты",
+  blocked: "Заблокированные аккаунты",
+  history: "История действий",
+};
 
 const pillClass = "cursor-pointer rounded-[var(--radii-pill)] border-solid px-4 py-2 [border-width:var(--borders-thin)] [font-weight:var(--font-weights-bold)]";
 
@@ -35,10 +45,9 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export function AdminPanel() {
+export function AdminPanel({ section = "overview" }: { section?: AdminSection }) {
   const { ready, role, reports, removed, blocked, history } = useModeration();
   const localData = useLocalData();
-  const [tab, setTab] = useState<AdminTab>("new");
   const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
@@ -61,7 +70,7 @@ export function AdminPanel() {
 
   const newReports = reports.filter((r) => r.status === "new");
   const doneReports = reports.filter((r) => r.status !== "new");
-  const visible = tab === "new" ? newReports : doneReports;
+  const visible = section === "new" ? newReports : doneReports;
   const recordedReports = new Set(history.filter((event) => event.action === "report_received").map((event) => event.reportId));
   const historyItems: ModerationEvent[] = [
     ...history,
@@ -90,16 +99,30 @@ export function AdminPanel() {
   const popularCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   return (
-    <main className="mx-auto [max-width:var(--layout-profile-max-width)] [padding:var(--layout-profile-padding)]">
+    <main className="mx-auto w-full max-w-[1380px] px-5 py-6 max-[480px]:px-3">
       <BackHeader prefix="pf" />
 
-      <h1 className="m-0 font-display [font-size:var(--font-sizes-profile-name)] [font-weight:var(--font-weights-heavy)]">Админ-панель</h1>
+      <h1 className="m-0 font-display [font-size:var(--font-sizes-profile-name)] [font-weight:var(--font-weights-heavy)]">{sectionTitles[section]}</h1>
       <p className="mt-1.5 text-muted">Жалобы на публикации и управление пользователями.</p>
       <button type="button" onClick={() => setRole("user")} className={`${pillClass} mt-3 border-line bg-transparent hover:border-coral`}>
         Выйти из режима админа
       </button>
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-2" aria-label="Обзор активности">
+      <div className="mt-6 grid grid-cols-1 items-start gap-7 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <nav className="grid gap-2 sm:grid-cols-2 lg:sticky lg:top-6 lg:grid-cols-1" aria-label="Разделы админ-панели">
+        {navigation.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            aria-current={section === item.id ? "page" : undefined}
+            className={`rounded-[var(--radii-pill)] border px-4 py-3 font-semibold no-underline transition-colors hover:border-coral ${section === item.id ? "border-coral bg-coral text-white" : "border-line bg-surface text-inherit"}`}
+          >
+            {item.label}{item.id === "new" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
+          </Link>
+        ))}
+      </nav>
+      <div className="min-w-0">
+      {section === "overview" && <section className="grid gap-4 lg:grid-cols-2" aria-label="Обзор активности">
         {/* 1. Пользователи */}
         <DashCard title="Пользователи" note="Регистрация недоступна в демо-режиме">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -143,24 +166,9 @@ export function AdminPanel() {
             <Metric label="Заблокировано" value={blocked.length} />
           </div>
         </DashCard>
-      </section>
+      </section>}
 
-      <nav className="flex flex-wrap [gap:var(--profile-tabs-gap)] [margin:var(--profile-tabs-margin)]" aria-label="Разделы админ-панели">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={tab === item.id}
-            onClick={() => setTab(item.id)}
-            className={`${pillClass} px-6 py-[13px] hover:border-coral ${tab === item.id ? "border-coral bg-coral [color:var(--colors-white)]" : "border-line bg-transparent"}`}
-          >
-            {item.label}
-            {item.id === "new" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
-          </button>
-        ))}
-      </nav>
-
-      {tab === "removed" ? (
+      {section === "removed" ? (
         removed.length === 0 ? <p className="py-[50px] text-center text-muted">Удалённых публикаций нет.</p> : (
           <ul className="m-0 grid list-none gap-3 p-0">
             {removed.map((id) => (
@@ -188,7 +196,7 @@ export function AdminPanel() {
             ))}
           </ul>
         )
-      ) : tab === "blocked" ? (
+      ) : section === "blocked" ? (
         blocked.length === 0 ? (
           <p className="py-[50px] text-center text-muted">Заблокированных пользователей нет.</p>
         ) : (
@@ -203,15 +211,15 @@ export function AdminPanel() {
             ))}
           </ul>
         )
-      ) : tab === "history" ? (
+      ) : section === "history" ? (
         historyItems.length === 0 ? <p className="py-[50px] text-center text-muted">История появится после жалоб и действий модератора.</p> : (
           <ul className="m-0 grid list-none gap-3 p-0">
             {historyItems.map((event) => <HistoryCard key={event.id} event={event} />)}
           </ul>
         )
-      ) : visible.length === 0 ? (
+      ) : section === "new" || section === "done" ? visible.length === 0 ? (
         <p className="py-[50px] text-center text-muted">
-          {tab === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет."}
+          {section === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет."}
         </p>
       ) : (
         <ul className="m-0 grid list-none gap-4 p-0">
@@ -225,7 +233,9 @@ export function AdminPanel() {
             />
           ))}
         </ul>
-      )}
+      ) : null}
+      </div>
+      </div>
     </main>
   );
 }
