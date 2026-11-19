@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "../ui/Icon";
 
 const cities = ["Все города", "Алматы", "Астана", "Шымкент"];
@@ -9,7 +8,7 @@ const toolbarClass = `flex items-center justify-between [gap:var(--layout-toolba
   max-[1000px]:flex-wrap max-[1000px]:[gap:var(--layout-toolbar-gap-at1000)] max-[1000px]:my-5
   max-[480px]:[gap:var(--layout-toolbar-gap-at480)] max-[480px]:my-[17px]`;
 
-const citiesClass = `flex shrink-0 gap-[14px] max-[1240px]:gap-2.5 max-[1000px]:flex-1
+const citiesClass = `flex flex-wrap gap-[14px] max-[1240px]:gap-2.5 max-[1000px]:flex-1
   max-[800px]:grid max-[800px]:grid-cols-[1.35fr_1fr_1fr_1.1fr] max-[800px]:gap-2
   max-[480px]:w-full max-[480px]:grid-cols-[1.4fr_1fr_1fr_1.15fr] max-[480px]:gap-1.5`;
 
@@ -41,10 +40,12 @@ export function FeedToolbar({
   onSearchChange,
 }: FeedToolbarProps) {
 
+  const visibleCities = cities.includes(activeCity) ? cities : [...cities, activeCity];
+
   return (
     <section className={toolbarClass} aria-label="Города и поиск">
       <div className={citiesClass} role="group" aria-label="Выбор города">
-        {cities.map((city) => (
+        {visibleCities.map((city) => (
           <button
             key={city}
             type="button"

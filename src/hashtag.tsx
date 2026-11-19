@@ -1,33 +1,38 @@
+import Link from "next/link";
 
-import React from "react";
+const hashtag = String.raw`#[\p{L}\p{N}_][\p{L}\p{M}\p{N}_]*`;
+const tokenPattern = new RegExp(`(${hashtag})`, "gu");
+export const fullHashtag = new RegExp(`^${hashtag}$`, "u");
+
+export function containsHashtag(text: string, tag: string) {
+  return text.toLowerCase().match(tokenPattern)?.includes(`#${tag.toLowerCase()}`) ?? false;
+}
 
 export function renderTextWithHashtags(
   text: string,
-  onHashtagClick?: (tag: string) => void
+  onHashtagClick?: (tag: string) => void,
+  postHref?: string,
 ) {
-  const parts = text.split(/(#[а-яА-ЯёЁa-zA-Z0-9_]+)/g);
-
-  return parts.map((part, index) => {
-    if (part.startsWith("#")) {
-      const cleanTag = part.slice(1).toLowerCase();
-
-      return (
-        <button
-          key={index}
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            onHashtagClick?.(cleanTag);
-          }}
-          className="text-[#e85d44] font-medium hover:underline cursor-pointer bg-transparent border-none p-0 inline"
-        >
+  return text.split(tokenPattern).map((part, index) => {
+    if (!part) return null;
+    if (index % 2 === 0) {
+      return postHref ? (
+        <Link key={index} href={postHref} className="text-inherit no-underline" onClick={(event) => event.stopPropagation()}>
           {part}
-        </button>
-      );
+        </Link>
+      ) : part;
     }
-
-    return part;
+    const tag = part.slice(1).toLowerCase();
+    return (
+      <Link key={index} href={{ pathname: "/", query: { tag } }}
+        onClick={(event) => event.stopPropagation()}
+        onNavigate={onHashtagClick && ((event) => {
+          event.preventDefault();
+          onHashtagClick(tag);
+        })}
+        className="font-medium text-coral-deep no-underline hover:underline">
+        {part}
+      </Link>
+    );
   });
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { getLocalSnapshot } from "./data/local-store";
+import { getLocalSnapshot, type LocalSnapshot, type LocalPost } from "./data/local-store";
 
 // ---------- типы ----------
 
-export type Role = "user" | "admin";
+export type Role = "user" | "moderator" | "admin";
+
+export function canViewAccountReports(role: Role) {
+  return role === "admin" || role === "moderator";
+}
 
 export type ReportReason = "spam" | "abuse" | "hate" | "violence" | "illegal" | "personal" | "other";
 
@@ -31,6 +35,8 @@ export type NewReport = {
 };
 
 export type Report = NewReport & {
+  accountUsername?: string;
+  localAccount?: boolean;
   id: string;
   reporter: string;
   createdAt: number;
@@ -80,7 +86,7 @@ function load(): Snapshot {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const data = JSON.parse(raw);
-      if (data.role === "admin") next.role = "admin";
+      if (data.role === "admin" || data.role === "moderator") next.role = data.role;
       if (Array.isArray(data.reports)) next.reports = data.reports;
       if (Array.isArray(data.history)) next.history = data.history;
       if (Array.isArray(data.removed)) next.removed = data.removed;
@@ -124,7 +130,7 @@ function subscribe(listener: () => void) {
   listeners.add(listener);
   // синхронизация между вкладками
   const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY) {
+    if (e.key === KEY || e.key === null) {
       snapshot = load();
       emit();
     }
@@ -142,8 +148,10 @@ export function useModeration(): Snapshot {
 
 // ---------- роль ----------
 
-export function checkAdminCode(code: string): boolean {
-  return code === ADMIN_CODE;
+export function roleForCode(code: string): Role | null {
+  if (code && code === ADMIN_CODE) return "admin";
+  if (code && code === process.env.NEXT_PUBLIC_MODERATOR_CODE) return "moderator";
+  return null;
 }
 
 export function setRole(role: Role) {
@@ -151,6 +159,24 @@ export function setRole(role: Role) {
 }
 
 // ---------- жалобы ----------
+
+function postAccount(post: LocalPost, localUsername: string) {
+  if (post.isOwn) return localUsername.toLowerCase();
+  return (post.authorUsername ?? (post.named ? post.author : "")).toLowerCase();
+}
+
+export function accountReports(reports: Report[], username: string, local: LocalSnapshot) {
+  const target = username.toLowerCase();
+  const ownAccount = target === local.profile.username.toLowerCase();
+  const posts = new Map(local.posts.map((post) => [post.id, post]));
+  return reports.filter((report) => {
+    if (report.localAccount) return ownAccount;
+    if (report.accountUsername) return report.accountUsername === target;
+    const post = posts.get(report.postId);
+    if (post) return postAccount(post, local.profile.username) === target;
+    return report.authorId?.toLowerCase() === target;
+  });
+}
 
 function currentReporter(): string {
   return getLocalSnapshot().profile.username || "гость";
@@ -166,8 +192,12 @@ export function addReport(input: NewReport) {
   );
   if (duplicate) return;
 
+  const local = getLocalSnapshot();
+  const post = local.posts.find((entry) => entry.id === input.postId);
   const report: Report = {
     ...input,
+    accountUsername: post ? postAccount(post, local.profile.username) || undefined : undefined,
+    localAccount: post?.isOwn,
     details: input.details.slice(0, 300),
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     reporter,

@@ -1,14 +1,19 @@
 "use client";
 
+import { renderTextWithHashtags } from "../../hashtag";
+import { CityLink } from "../posts/CityLink";
+
 import { useState } from "react";
 import Link from "next/link";
 import { Comments } from "../Comments";
 import { PostActions } from "../posts/PostActions";
+import { PostPoll } from "../posts/PostPoll";
 import { PostMenu } from "./PostMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { PostAuthorLabel } from "../posts/PostAuthorLabel";
 import type { MyPost } from "./types";
 import type { LocalComment } from "../../data/local-store";
+import { setLocalPinned } from "../../data/local-store";
 
 type ProfilePostCardProps = {
   post: MyPost;
@@ -38,8 +43,7 @@ export function ProfilePostCard({
   const [draft, setDraft] = useState(post.text);
   const [showComments, setShowComments] = useState(false);
 
-  // у поста с фото текст может быть пустым
-  const canSave = draft.trim().length > 0 || Boolean(post.image);
+  const canSave = draft.trim().length > 0 || Boolean(post.image || post.poll);
 
   function startEdit() {
     setDraft(post.text);
@@ -53,11 +57,12 @@ export function ProfilePostCard({
 
   return (
     <article className="border-solid border-line bg-surface [padding:var(--cards-profile-padding)] [border-width:var(--borders-thin)] [border-radius:var(--cards-profile-radius)]">
+      {post.pinned && <p className="mb-2 text-xs font-semibold text-coral-deep">Закреплено</p>}
       <header className="mb-3.5 flex items-center gap-3.5">
         <ProfileAvatar avatar={post.named ? post.avatar ?? null : null} name={post.author} variant="post" />
         <div>
           <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} className="block [font-size:var(--font-sizes-body-large)] [font-weight:var(--font-weights-heavy)]" />
-          <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {formatTime(post.minutes)}</span>
+          <span className="block text-muted [font-size:var(--font-sizes-meta)]"><CityLink city={post.city} /> · {formatTime(post.minutes)}</span>
         </div>
       </header>
       {editing ? (
@@ -79,15 +84,17 @@ export function ProfilePostCard({
           </div>
         </div>
       ) : (
-        post.text && <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)] [overflow-wrap:anywhere]"><Link href={`/post/${post.id}`} className="text-inherit no-underline">{post.text}</Link></p>
+        post.text && <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-author)] [overflow-wrap:anywhere]">{renderTextWithHashtags(post.text, undefined, `/post/${post.id}`)}</p>
       )}
 
       {post.image && (
-        <Link href={`/post/${post.id}`} aria-label="Открыть публикацию">
+        <Link href={`/post/${post.id}`} aria-label="Открыть публикацию" className="mx-auto mt-3.5 block w-fit max-w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.image} alt={post.imageAlt ?? ""} className="mt-3.5 block max-h-[480px] w-full rounded-xl object-cover" />
+          <img src={post.image} alt={post.imageAlt ?? ""} className="block h-auto max-h-[min(75svh,650px)] w-auto max-w-full rounded-xl object-contain" />
         </Link>
       )}
+
+      {post.poll && <PostPoll postId={post.id} poll={post.poll} />}
 
       <PostActions
         likes={post.likes}
@@ -98,7 +105,7 @@ export function ProfilePostCard({
         onSave={() => onSave(post.id)}
         onToggleComments={() => setShowComments((v) => !v)}
         commentsOpen={showComments}
-        menu={<PostMenu onEdit={startEdit} onDelete={() => onDelete(post.id)} />}
+        menu={<PostMenu onEdit={startEdit} onDelete={() => onDelete(post.id)} pinned={post.pinned} onPin={post.named ? () => setLocalPinned(post.id, !post.pinned) : undefined} />}
         separated
       />
 

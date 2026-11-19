@@ -3,7 +3,7 @@ import { initialProfilePosts, profileUser, type ProfileUser } from "./profile";
 
 export type LocalComment = { id: string; text: string; username: string; isAnonymous: boolean; createdAt?: number };
 export type LocalPoll = { question: string; options: string[]; votes: number[]; voted: number[]; multiple: boolean; closesAt: number };
-export type LocalPost = Omit<Post, "comments"> & { poll?: LocalPoll; createdAt?: number; authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
+export type LocalPost = Omit<Post, "comments"> & { pinned?: boolean; poll?: LocalPoll; createdAt?: number; authorUsername?: string; comments: LocalComment[]; legacyAnonymousComments: string[]; isOwn: boolean; liked: boolean; saved: boolean; myCommentIndexes: number[] };
 export type LocalProfile = ProfileUser & { country: string };
 export type LocalSnapshot = { ready: boolean; posts: LocalPost[]; profile: LocalProfile; avatar: string | null; error: string | null };
 type LocalData = Pick<LocalSnapshot, "posts" | "profile" | "avatar">;
@@ -120,6 +120,7 @@ function readPost(value: unknown, version: 1 | 2 | 3, author: string): LocalPost
     id: value.id, named: value.named, author: value.author, authorUsername: value.authorUsername as string | undefined, city: value.city, minutes: value.minutes,
     createdAt: Number.isSafeInteger(value.createdAt) && (value.createdAt as number) > 0 ? value.createdAt as number : undefined,
     text: value.text, likes: value.likes, ...commentData, isOwn: value.isOwn, liked: value.liked, saved: value.saved,
+    pinned: value.isOwn && value.named && value.pinned === true,
     avatar: value.avatar as string | undefined, image: value.image as string | undefined,
     question: value.question as string | undefined, imageAlt: value.imageAlt as string | undefined,
     poll: readPoll(value.poll),
@@ -263,6 +264,18 @@ export function createLocalStore(getStorage: () => Storage) {
     },
     toggleLocalLike(id: number) { return updatePost(id, (post) => ({ ...post, liked: !post.liked, likes: Math.max(0, post.likes + (post.liked ? -1 : 1)) })); },
     toggleLocalSaved(id: number) { return updatePost(id, (post) => ({ ...post, saved: !post.saved })); },
+    setLocalPinned(id: number, pinned: boolean) {
+      return change((data) => {
+        const target = data.posts.find((post) => post.id === id);
+        if (!target?.isOwn || !target.named) throw new LocalDataError("Можно закрепить только свою открытую публикацию.");
+        const posts = data.posts.map((post) => {
+          if (post.id === id) return { ...post, pinned };
+          if (pinned && post.isOwn && post.pinned) return { ...post, pinned: false };
+          return post;
+        });
+        return { ...data, posts };
+      });
+    },
     voteLocalPoll(id: number, options: number[]) { return updatePost(id, (post) => {
       if (!post.poll || !options.length || options.some((option) => !integer(option) || option >= post.poll!.options.length) || post.poll.voted.length > 0 || post.poll.closesAt <= Date.now() || (!post.poll.multiple && options.length > 1)) throw new LocalDataError("Вы уже голосовали или опрос завершён.");
       const votes = [...post.poll.votes]; options.forEach((option) => { votes[option] += 1; });
@@ -276,7 +289,7 @@ export function createLocalStore(getStorage: () => Storage) {
         return { ...data, posts: data.posts.filter((entry) => entry.id !== id) };
       });
     },
-    editLocalPost(id: number, text: string) { return updatePost(id, (post) => { own(post); return { ...post, text: content(text, post.image !== undefined) }; }); },
+    editLocalPost(id: number, text: string) { return updatePost(id, (post) => { own(post); return { ...post, text: content(text, Boolean(post.image || post.poll)) }; }); },
     addLocalComment(id: number, text: string, isAnonymous = false) {
       return updatePost(id, (post, data) => {
         if (typeof isAnonymous !== "boolean") throw new LocalDataError("Выберите режим публикации комментария.");

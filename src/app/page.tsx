@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useEffect, useState, Suspense, useRef } from "react";
+import { useState, Suspense } from "react";
 import {
   useSearchParams,
   useRouter,
-  usePathname,
 } from "next/navigation";
 
 import { FeedHeader, type NavTab } from "../components/feed/FeedHeader";
+import { containsHashtag, fullHashtag } from "../hashtag";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
 import { PostCard } from "../components/posts/PostCard";
@@ -33,8 +33,7 @@ function FeedContent({ section }: { section: FeedSection }) {
     : section === "saved"
       ? "Сохранённое"
       : "Лента";
-  const [activeCity, setActiveCity] = useState("Все города");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [freeSearch, setFreeSearch] = useState("");
 
   const { posts, profile, ready: localReady, error } = useLocalData();
   const { ready: moderationReady, removed, blocked } = useModeration();
@@ -47,87 +46,43 @@ function FeedContent({ section }: { section: FeedSection }) {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
+  const activeTag = searchParams.get("tag");
+  const activeCity = searchParams.get("city") || "Все города";
+  const searchQuery = activeTag ? `#${activeTag}` : freeSearch;
 
-  const previousTag = useRef<string | null>(
-    searchParams.get("tag")
-  );
-
-  // Восстановление хэштега из URL
-  useEffect(() => {
-    const tag = searchParams.get("tag");
-
-    if (tag) {
-      setSearchQuery(`#${tag}`);
-    } else if (previousTag.current !== null) {
-      setSearchQuery("");
+  function updateFilters(changes: { tag?: string | null; city?: string | null }) {
+    const url = new URL(window.location.href);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
     }
+    if (url.href !== window.location.href) window.history.replaceState(null, "", url);
+  }
 
-    previousTag.current = tag;
-  }, [searchParams]);
+  function handleSearchChange(value: string) {
+    const tag = fullHashtag.test(value) ? value.slice(1) : null;
+    setFreeSearch(tag ? "" : value);
+    updateFilters({ tag });
+  }
 
-  // Изменение URL
-  const updateTagInUrl = (tag: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
+  function handleHashtagClick(tag: string) {
+    setFreeSearch("");
+    updateFilters({ tag: activeTag?.toLowerCase() === tag ? null : tag });
+  }
 
-    if (tag) {
-      params.set("tag", tag);
-    } else {
-      params.delete("tag");
-    }
+  function handleResetFilter() {
+    setFreeSearch("");
+    updateFilters({ tag: null });
+  }
 
-    const query = params.toString();
-
-    router.replace(
-      query ? `${pathname}?${query}` : pathname,
-      { scroll: false }
-    );
-  };
-
-  // Поиск
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-
-    const hashtagMatch = value
-      .trim()
-      .match(/^#([а-яА-ЯёЁa-zA-Z0-9_]+)$/);
-
-    if (hashtagMatch) {
-      updateTagInUrl(hashtagMatch[1].toLowerCase());
-    } else if (searchParams.has("tag")) {
-      updateTagInUrl(null);
-    }
-  };
-
-  // Нажатие на хэштег
-  const handleHashtagClick = (tag: string) => {
-    const cleanTag = tag.toLowerCase();
-
-    if (searchQuery.toLowerCase() === `#${cleanTag}`) {
-      setSearchQuery("");
-      updateTagInUrl(null);
-    } else {
-      setSearchQuery(`#${cleanTag}`);
-      updateTagInUrl(cleanTag);
-    }
-  };
-
-  // Сброс фильтра хэштега
-  const handleResetFilter = () => {
-    setSearchQuery("");
-    updateTagInUrl(null);
-  };
-
-  const handleCityClick = (city: string) => {
-    setActiveCity(city);
-    setSearchQuery("");
-    if (searchParams.has("tag")) updateTagInUrl(null);
-  };
+  function handleCityClick(city: string) {
+    setFreeSearch("");
+    updateFilters({ city, tag: null });
+  }
 
   // Создание публикации
   const handlePublished = () => {
-    setActiveCity("Все города");
-    setSearchQuery("");
+    setFreeSearch("");
     router.push("/");
   };
 
@@ -139,9 +94,9 @@ function FeedContent({ section }: { section: FeedSection }) {
       activeCity === "Все города" ||
       post.city === activeCity;
 
-    const matchesSearch =
-      query === "" ||
-      post.text.toLowerCase().includes(query);
+    const matchesSearch = activeTag
+      ? containsHashtag(post.text, activeTag) || containsHashtag(post.question ?? "", activeTag)
+      : post.text.toLowerCase().includes(query);
 
     return (
       ready &&
@@ -175,7 +130,7 @@ function FeedContent({ section }: { section: FeedSection }) {
 
       <FeedToolbar
         activeCity={activeCity}
-        onCityChange={setActiveCity}
+        onCityChange={(city) => updateFilters({ city: city === "Все города" ? null : city })}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
       />

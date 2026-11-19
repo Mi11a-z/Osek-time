@@ -277,17 +277,22 @@ const historyLabels: Record<ModerationEvent["action"], string> = {
 };
 
 function HistoryCard({ event, post }: { event: ModerationEvent; post?: LocalPost | Post }) {
+  const local = useLocalData();
   const reason = event.reason && reportReasons.find((entry) => entry.id === event.reason);
   const authorLabel = event.targetLabel || post?.author;
   const postText = event.postText || post?.text || post?.question;
+  const linkedPost = event.targetId ? local.posts.find((entry) => entry.named && (entry.authorUsername?.toLowerCase() === event.targetId?.toLowerCase() || entry.author.toLowerCase() === event.targetId?.toLowerCase())) : undefined;
+  const targetHref = event.targetId && (event.targetId.toLowerCase() === local.profile.username.toLowerCase() || event.targetId.toLowerCase() === local.profile.name.toLowerCase())
+    ? "/profile"
+    : event.targetId ? `/user/${encodeURIComponent(linkedPost?.authorUsername ?? event.targetId.toLowerCase())}` : undefined;
   return (
     <li className={adminCardClass}>
       <div className="flex flex-wrap items-center gap-2">
         <strong>{historyLabels[event.action]}</strong>
         <span className="ml-auto text-sm text-muted">{formatDate(event.createdAt)}</span>
       </div>
-      {authorLabel && <p className="mb-0 mt-2 text-sm">Автор поста: <strong>{authorLabel}</strong>{event.targetId ? ` · @${event.targetId}` : post?.named === false ? " · анонимно" : ""}</p>}
-      {!authorLabel && event.targetId && <p className="mb-0 mt-2 text-sm">Аккаунт: <strong>@{event.targetId}</strong></p>}
+      {authorLabel && <p className="mb-0 mt-2 text-sm">Автор поста: {targetHref ? <Link href={targetHref} className="font-bold text-coral-deep underline-offset-2 hover:underline">{authorLabel}</Link> : <strong>{authorLabel}</strong>}{event.targetId ? ` · @${event.targetId}` : post?.named === false ? " · анонимно" : ""}</p>}
+      {!authorLabel && event.targetId && <p className="mb-0 mt-2 text-sm">Аккаунт: {targetHref ? <Link href={targetHref} className="font-bold text-coral-deep underline-offset-2 hover:underline">@{event.targetId}</Link> : <strong>@{event.targetId}</strong>}</p>}
       <p className="mb-0 mt-1 text-sm text-muted">
         {event.description}{reason ? ` · причина: ${reason.label}` : ""}{event.postId ? ` · пост №${event.postId}` : ""}
       </p>

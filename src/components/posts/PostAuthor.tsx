@@ -1,5 +1,7 @@
 "use client";
 
+import { CityLink } from "../posts/CityLink";
+
 import type { ReactNode } from "react";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { PostAuthorLabel } from "./PostAuthorLabel";
@@ -52,7 +54,7 @@ export function PostAuthor({ author, avatar, named, isOwn = false, username, cit
             >
               {city}
             </button>
-          ) : city}
+          ) : <CityLink city={city} />}
           <span aria-hidden="true"> · </span>{minutes} мин
         </span>
       </div>

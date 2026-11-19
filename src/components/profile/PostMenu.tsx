@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../ui/Icon";
 
 type PostMenuProps = {
+  onPin?: () => void;
+  pinned?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
   onReport?: () => void;
@@ -17,7 +19,7 @@ type Confirm = "delete" | "block" | null;
 
 const itemClass = "block w-full cursor-pointer border-0 bg-transparent px-4 py-2.5 text-left hover:bg-peach";
 
-export function PostMenu({ onEdit, onDelete, onReport, onBlockAuthor, deleteLabel = "Удалить", variant = "footer" }: PostMenuProps) {
+export function PostMenu({ onEdit, onDelete, onReport, onBlockAuthor, onPin, pinned, deleteLabel = "Удалить", variant = "footer" }: PostMenuProps) {
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export function PostMenu({ onEdit, onDelete, onReport, onBlockAuthor, deleteLabe
     return () => document.removeEventListener("keydown", onKey);
   }, [confirm]);
 
-  if (!onEdit && !onDelete && !onReport && !onBlockAuthor) return null;
+  if (!onEdit && !onDelete && !onReport && !onBlockAuthor && !onPin) return null;
 
   const confirmTexts = {
     delete: { title: "Удалить публикацию?", text: "Это действие нельзя отменить.", action: "Удалить", run: onDelete },
@@ -73,6 +75,11 @@ export function PostMenu({ onEdit, onDelete, onReport, onBlockAuthor, deleteLabe
             role="menu"
             className={`absolute right-0 z-20 w-56 overflow-hidden rounded-xl border-solid border-line bg-surface shadow-lg [border-width:var(--borders-thin)] ${header ? "top-full mt-1" : "bottom-full mb-1"}`}
           >
+            {onPin && (
+              <button type="button" role="menuitem" onClick={() => { setOpen(false); onPin(); }} className={itemClass}>
+                {pinned ? "Открепить" : "Закрепить в профиле"}
+              </button>
+            )}
             {onEdit && (
               <button type="button" role="menuitem" onClick={() => { setOpen(false); onEdit(); }} className={itemClass}>
                 Редактировать

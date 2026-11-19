@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { checkAdminCode, setRole } from "../../moderation";
+import { roleForCode, setRole } from "../../moderation";
 
 export function AdminUnlockDialog({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState("");
@@ -15,8 +15,9 @@ export function AdminUnlockDialog({ onClose }: { onClose: () => void }) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (checkAdminCode(code)) {
-      setRole("admin");
+    const role = roleForCode(code);
+    if (role) {
+      setRole(role);
       onClose();
     } else {
       setError("Неверный код.");
@@ -29,7 +30,7 @@ export function AdminUnlockDialog({ onClose }: { onClose: () => void }) {
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
-        aria-label="Вход для администратора"
+        aria-label="Вход для модерации"
         className="w-full max-w-sm rounded-[var(--radii-panel)] bg-surface p-6 text-left"
         onClick={(e) => e.stopPropagation()}
       >

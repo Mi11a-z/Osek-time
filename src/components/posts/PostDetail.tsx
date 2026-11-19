@@ -1,5 +1,7 @@
 "use client";
 
+import { CityLink } from "../posts/CityLink";
+
 import { useState } from "react";
 import Link from "next/link";
 import { useModeration, removePost, blockUser } from "../../moderation";
@@ -12,10 +14,10 @@ import { usePostViews } from "../../usePostViews";
 import { Comments } from "../Comments";
 import { BackHeader } from "../ui/BackHeader";
 import { PostActions } from "./PostActions";
+import { PostPoll } from "./PostPoll";
 import { ViewsCount } from "./ViewsCount";
 import { AuthorAvatar } from "./AuthorAvatar";
 import { PostAuthorLabel } from "./PostAuthorLabel";
-import { useRouter } from "next/navigation";
 import { renderTextWithHashtags } from "@/src/hashtag";
 
 
@@ -23,7 +25,6 @@ const detailAvatarClass = "[width:var(--avatars-detail-size)] [height:var(--avat
 
 
 export function PostDetail({ postId }: { postId: number }) {
-  const router = useRouter();
   const { likes, isLiked, isSaved, comments, toggleLike, toggleSave, addComment, deleteComment } = usePostInteractions(postId);
   const views = usePostViews(postId, true); // true = засчитать просмотр
   const { posts, profile, ready: localReady, error } = useLocalData();
@@ -52,13 +53,13 @@ export function PostDetail({ postId }: { postId: number }) {
           )}
           <div>
             <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} href={authorHref} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
-            <span className="block text-muted [font-size:var(--font-sizes-meta)]">{post.city} · {post.minutes} мин</span>
+            <span className="block text-muted [font-size:var(--font-sizes-meta)]"><CityLink city={post.city} /> · {post.minutes} мин</span>
           </div>
           <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id, { authorId, author: post.author, postText: post.text }) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId, post.author) : undefined} />
         </header>
 
-        {renderTextWithHashtags(post.text, (tag) => router.push(`/?tag=${encodeURIComponent(tag)}`))}
-        {post.question && <p className="mt-3 font-display [font-size:var(--font-sizes-title)]">{post.question}</p>}
+        {renderTextWithHashtags(post.text)}
+        {post.question && <p className="mt-3 font-display [font-size:var(--font-sizes-title)]">{renderTextWithHashtags(post.question)}</p>}
 
         {post.image && (
           <Image
@@ -70,6 +71,8 @@ export function PostDetail({ postId }: { postId: number }) {
             sizes="(max-width: 800px) 100vw, 900px"
           />
         )}
+
+        {post.poll && <PostPoll postId={post.id} poll={post.poll} />}
 
         <PostActions
           likes={likes}

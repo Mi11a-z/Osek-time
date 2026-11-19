@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 type ProfilePostComposerProps = {
+  onClose: () => void;
   onPublish: (text: string, image?: string) => boolean;
 };
 
@@ -31,8 +32,7 @@ function readImage(file: File): Promise<string> {
   });
 }
 
-export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
-  const [open, setOpen] = useState(false);
+export function ProfilePostComposer({ onPublish, onClose }: ProfilePostComposerProps) {
   const [text, setText] = useState("");
   const [image, setImage] = useState<string | undefined>();
   const [error, setError] = useState("");
@@ -47,7 +47,7 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
     setText("");
     setImage(undefined);
     setError("");
-    setOpen(false);
+    onClose();
   }
 
   async function handleFile(event: ChangeEvent<HTMLInputElement>) {
@@ -72,18 +72,6 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
     if (onPublish(text.trim(), image)) reset();
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mb-5 w-full cursor-pointer rounded-[var(--cards-profile-radius)] border-dashed border-line bg-transparent px-5 py-4 text-left text-muted [border-width:var(--borders-thin)] hover:border-coral hover:text-coral-deep [font-weight:var(--font-weights-bold)]"
-      >
-        + Добавить пост
-      </button>
-    );
-  }
-
   return (
     <section
       className="mb-5 border-solid border-line bg-surface [padding:var(--cards-profile-padding)] [border-width:var(--borders-thin)] [border-radius:var(--cards-profile-radius)]"
@@ -101,9 +89,9 @@ export function ProfilePostComposer({ onPublish }: ProfilePostComposerProps) {
       />
 
       {image && (
-        <div className="relative mt-3">
+        <div className="relative mx-auto mt-3 w-fit max-w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image} alt="Предпросмотр фото" className="block max-h-[320px] w-full rounded-xl object-cover" />
+          <img src={image} alt="Предпросмотр фото" className="block h-auto max-h-[320px] w-auto max-w-full rounded-xl object-contain" />
           <button
             type="button"
             onClick={() => { imageRequest.current += 1; setReadingImage(false); setImage(undefined); }}

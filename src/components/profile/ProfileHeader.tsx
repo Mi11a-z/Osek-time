@@ -1,20 +1,28 @@
 "use client";
 
+import { renderTextWithHashtags } from "../../hashtag";
+import { CityLink } from "../posts/CityLink";
+
 import Link from "next/link";
 import { useRef, type ChangeEvent } from "react";
 import type { MyUser } from "./types";
+import { AccountReportsLink } from "./AccountReportsLink";
 import { ProfileAvatar } from "./ProfileAvatar";
 
 type ProfileHeaderProps = {
   user: MyUser;
   avatar: string | null;
   onAvatarChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  stats: { posts: number; likes: number; comments: number; saved: number };
+  stats: { posts: number; following: number; followers: number };
   onEdit: () => void;
   isAdmin?: boolean;
+  reportsCount?: number;
+  onLeaveModeration?: () => void;
+  onShowFollowing: () => void;
+  onShowFollowers: () => void;
 };
 
-export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit, isAdmin = false }: ProfileHeaderProps) {
+export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit, isAdmin = false, reportsCount, onLeaveModeration, onShowFollowing, onShowFollowers }: ProfileHeaderProps) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   return (
@@ -41,37 +49,33 @@ export function ProfileHeader({ user, avatar, onAvatarChange, stats, onEdit, isA
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-muted">@{user.username} <span aria-hidden="true">·</span> {user.city}, {user.country}</p>
-          <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-body-medium)]">{user.bio}</p>
+          <p className="mt-1.5 text-muted">@{user.username} <span aria-hidden="true">·</span> <CityLink city={user.city} />, {user.country}</p>
+          <p className="mt-3.5 leading-[1.5] [font-size:var(--font-sizes-body-medium)]">{renderTextWithHashtags(user.bio)}</p>
         </div>
 
-        <div className="mt-4 flex flex-col items-stretch gap-2">
+        <div className="mt-4 flex min-w-40 flex-col items-stretch gap-2 max-[650px]:mt-0 max-[650px]:w-full">
           <button type="button" onClick={onEdit} className="cursor-pointer rounded-[var(--radii-pill)] border-solid border-ink bg-transparent px-[22px] py-3 text-ink [border-width:var(--borders-strong)] [font-weight:var(--font-weights-bold)] hover:bg-ink hover:[color:var(--colors-white)]">Редактировать</button>
           {isAdmin && (
             <Link href="/admin" className="rounded-[var(--radii-pill)] border-solid border-coral bg-coral px-[22px] py-3 text-center no-underline [border-width:var(--borders-strong)] [color:var(--colors-white)] [font-weight:var(--font-weights-bold)] hover:bg-coral-deep">
               Админ-панель
             </Link>
           )}
+          {reportsCount !== undefined && <AccountReportsLink username={user.username} count={reportsCount} />}
+          {onLeaveModeration && <button type="button" className="text-sm text-muted hover:underline" onClick={onLeaveModeration}>Выйти из режима модерации</button>}
         </div>
       </div>
 
-      <div className="grid grid-cols-4 border-solid border-line [border-top-width:var(--borders-thin)] max-[650px]:grid-cols-2">
+      <div className="grid grid-cols-3 border-solid border-line [border-top-width:var(--borders-thin)]">
         <div className="flex flex-col items-center gap-1 px-2 py-[18px]">
           <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.posts}</strong>
           <span className="text-muted [font-size:var(--font-sizes-label)]">Публикации</span>
         </div>
-        <div className="flex flex-col items-center gap-1 border-solid border-line px-2 py-[18px] [border-left-width:var(--borders-thin)]">
-          <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.likes}</strong>
-          <span className="text-muted [font-size:var(--font-sizes-label)]">Лайки</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 border-solid border-line px-2 py-[18px] [border-left-width:var(--borders-thin)] max-[650px]:border-l-0 max-[650px]:[border-top-width:var(--borders-thin)]">
-          <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.comments}</strong>
-          <span className="text-muted [font-size:var(--font-sizes-label)]">Комментарии</span>
-        </div>
-        <div className="flex flex-col items-center gap-1 border-solid border-line px-2 py-[18px] [border-left-width:var(--borders-thin)] max-[650px]:[border-top-width:var(--borders-thin)]">
-          <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.saved}</strong>
-          <span className="text-muted [font-size:var(--font-sizes-label)]">Сохранено</span>
-        </div>
+        <button type="button" onClick={onShowFollowers} className="flex cursor-pointer flex-col items-center gap-1 border-solid border-line bg-transparent px-2 py-[18px] [border-left-width:var(--borders-thin)] hover:bg-peach/30">
+          <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.followers}</strong><span className="text-muted [font-size:var(--font-sizes-label)]">Подписчики</span>
+        </button>
+        <button type="button" onClick={onShowFollowing} className="flex cursor-pointer flex-col items-center gap-1 border-solid border-line bg-transparent px-2 py-[18px] [border-left-width:var(--borders-thin)] hover:bg-peach/30">
+          <strong className="font-display [font-size:var(--font-sizes-stat)]">{stats.following}</strong><span className="text-muted [font-size:var(--font-sizes-label)]">Подписки</span>
+        </button>
       </div>
     </section>
   );

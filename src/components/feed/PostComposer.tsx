@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { Icon } from "../ui/Icon";
+import { readPostImage } from "../../data/read-post-image";
 import { createLocalPost, useLocalData } from "../../data/local-store";
 import { useModeration } from "../../moderation";
 
-const composerClass = `grid gap-4 p-5 [border:var(--borders-thin)_solid_var(--colors-card-border)] [border-radius:var(--radii-panel)] bg-surface max-[480px]:p-4`;
+const composerClass = "grid gap-4 p-5 max-[480px]:p-4";
+const toolClass = "cursor-pointer rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral";
 
 const pencilClass = `pointer-events-none absolute top-[25px] left-6 size-[33px]
   max-[1240px]:left-[19px] max-[1240px]:w-7 max-[1000px]:top-[23px]
@@ -44,8 +46,11 @@ const privacyClass = `flex items-center gap-3 col-span-full text-muted [font-siz
   max-[1240px]:[font-size:var(--font-sizes-caption)] max-[1240px]:gap-2 max-[1000px]:[font-size:var(--font-sizes-small)]
   max-[480px]:items-start max-[480px]:[font-size:var(--font-sizes-micro)]`;
 
-export function PostComposer({ city, onPublished }: { city?: string; onPublished?: () => void }) {
-  const [isAnonymous, setIsAnonymous] = useState(true);
+type PostComposerProps = { city?: string; onPublished?: () => void; variant?: "feed" | "profile" };
+
+export function PostComposer({ city, onPublished, variant = "feed" }: PostComposerProps) {
+  const inProfile = variant === "profile";
+  const [isAnonymous, setIsAnonymous] = useState(!inProfile);
   const [postText, setPostText] = useState("");
   const [image, setImage] = useState<string | undefined>();
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
@@ -58,6 +63,9 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
   const [open, setOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const imageRequest = useRef(0);
+  const [readingImage, setReadingImage] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [publishFailed, setPublishFailed] = useState(false);
   const { ready, profile, error } = useLocalData();
@@ -66,30 +74,34 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
   const hasPoll = pollQuestion.trim() && pollOptions.filter((option) => option.trim()).length >= 2;
   const pollStarted = Boolean(pollQuestion.trim() || pollOptions.some((option) => option.trim()));
   const pollComplete = !pollStarted || Boolean(hasPoll);
-  const canPublish = ready && moderationReady && !isBlocked && pollComplete && (postText.trim().length > 0 || Boolean(image) || Boolean(hasPoll)) && postText.length <= 5000;
+  const canPublish = !readingImage && ready && moderationReady && !isBlocked && pollComplete && (postText.trim().length > 0 || Boolean(image) || Boolean(hasPoll)) && postText.length <= 5000;
 
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (imagePreviewOpen) setImagePreviewOpen(false);
-      else setOpen(false);
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, imagePreviewOpen]);
+    const modal = dialog.current;
+    modal?.showModal();
+    textAreaRef.current?.focus();
+    return () => modal?.close();
+  }, [open]);
 
-  function handleImage(event: ChangeEvent<HTMLInputElement>) {
+  async function handleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    setImageError("");
     if (!file) return;
+    const request = ++imageRequest.current;
+    setReadingImage(false);
+    setImageError("");
     if (!file.type.startsWith("image/")) { setImageError("Выберите файл изображения."); return; }
-    if (file.size > 4 * 1024 * 1024) { setImageError("Размер изображения должен быть не больше 4 МБ."); return; }
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? setImage(reader.result) : setImageError("Не удалось загрузить изображение.");
-    reader.onerror = () => setImageError("Не удалось загрузить изображение.");
-    reader.readAsDataURL(file);
+    if (!inProfile && file.size > 4 * 1024 * 1024) { setImageError("Размер изображения должен быть не больше 4 МБ."); return; }
+    setReadingImage(true);
+    try {
+      const photo = await readPostImage(file, inProfile);
+      if (request === imageRequest.current) setImage(photo);
+    } catch {
+      if (request === imageRequest.current) setImageError("Не удалось загрузить изображение.");
+    } finally {
+      if (request === imageRequest.current) setReadingImage(false);
+    }
   }
 
   function handlePublish() {
@@ -98,6 +110,8 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
     if (!createLocalPost({ text: postText.trim(), image, poll, isAnonymous, city: city ?? profile.city })) { setPublishFailed(true); return; }
     setPublishFailed(false);
     setPostText("");
+    setIsAnonymous(!inProfile);
+    setImageError("");
     setImage(undefined);
     setPollQuestion(""); setPollOptions(["", ""]); setPollDuration(24); setPollMultiple(false); setPollSettingsOpen(false); setPollOpen(false);
     setOpen(false);
@@ -106,18 +120,27 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
 
   return (
     <>
-    <button type="button" onClick={() => setOpen(true)} className="mb-4 flex w-full items-center gap-4 rounded-[var(--radii-post)] border border-line bg-surface px-5 py-4 text-left text-muted shadow-sm hover:border-coral focus-visible:outline-2 focus-visible:outline-coral">
+    {inProfile ? <button type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className="rounded-full bg-coral px-4 py-2 font-semibold text-white hover:bg-coral-deep">+ Пост</button> :
+    <button type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className="mb-4 flex w-full items-center gap-4 rounded-[var(--radii-post)] border border-line bg-surface px-5 py-4 text-left text-muted shadow-sm hover:border-coral focus-visible:outline-2 focus-visible:outline-coral">
       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-peach text-ink"><Icon name="pencil" className="size-5" /></span>
       <span className="flex-1">Что нового?</span><span className="rounded-[var(--radii-pill)] bg-coral px-5 py-2 font-bold text-white">Создать пост</span>
-    </button>
-    {open && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(12_24_48/0.48)] p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="composer-title" className="w-full max-w-xl overflow-y-auto rounded-[var(--radii-panel)] bg-surface shadow-2xl">
+    </button>}
+    {open && <dialog ref={dialog} aria-labelledby="composer-title"
+      onCancel={(event) => { event.preventDefault(); if (imagePreviewOpen) setImagePreviewOpen(false); else setOpen(false); }}
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const box = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) setOpen(false);
+      }}
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-[var(--radii-panel)] border-0 bg-surface p-0 text-ink shadow-2xl backdrop:bg-[rgb(12_24_48/0.48)]">
+      <div inert={imagePreviewOpen}>
         <header className="flex items-center justify-between border-b border-line px-5 py-4">
           <span className="w-9" />
           <h2 id="composer-title" className="m-0 font-bold">Новая публикация</h2>
           <button type="button" aria-label="Закрыть окно" onClick={() => setOpen(false)} className="grid size-9 place-items-center rounded-full border-0 bg-transparent text-2xl leading-none text-muted hover:bg-peach hover:text-ink">×</button>
         </header>
     <section className={composerClass} aria-label="Новая публикация">
+      <p aria-live="polite" className="m-0 text-sm font-semibold">{isAnonymous ? "Аноним" : `От @${profile.username}`}</p>
       <label className="relative block min-w-0">
         <Icon name="pencil" className={pencilClass} />
         <textarea
@@ -133,30 +156,26 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <input ref={fileInput} type="file" accept="image/*" className="sr-only" onChange={handleImage} aria-label="Выбрать фотографию" />
-        <button type="button" onClick={() => fileInput.current?.click()} className="cursor-pointer rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral">Добавить фото</button>
-        <span className="text-xs text-muted">До 4 МБ</span>
-        <button
-          type="button"
-          onClick={() => {
-            setPostText((prev) => (prev && !prev.endsWith(" ") && !prev.endsWith("\n") ? `${prev} #` : `${prev}#`));
-            textAreaRef.current?.focus();
-          }}
-          className="cursor-pointer rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral"
-        >
-          ＋ Добавить хэштег
-        </button>
+        <input ref={fileInput} type="file" accept="image/*" hidden onChange={handleImage} />
+        <button type="button" onClick={() => fileInput.current?.click()} className={toolClass}>{image ? "Заменить фото" : "Фото"}</button>
+        <button type="button" className={toolClass} onClick={() => {
+          setPostText((prev) => (prev + (prev && !/\s$/.test(prev) ? " #" : "#")).slice(0, 5000));
+          textAreaRef.current?.focus();
+        }}># Хэштег</button>
+        {!pollOpen && <button type="button" onClick={() => setPollOpen(true)} className={toolClass}>Опрос</button>}
+        {!inProfile && <span className="text-xs text-muted">До 4 МБ</span>}
+      </div>
+      {readingImage && <p role="status" className="text-sm text-muted">Читаем фото…</p>}
         {image && <div className="relative size-24 shrink-0">
           <button type="button" onClick={() => setImagePreviewOpen(true)} aria-label="Открыть предпросмотр фотографии" className="absolute inset-0 overflow-hidden rounded-xl border border-line bg-ink/5 focus-visible:outline-2 focus-visible:outline-coral">
             <Image src={image} alt="Предпросмотр фотографии" fill unoptimized className="object-cover" sizes="96px" />
             <span className="absolute inset-x-0 bottom-0 bg-ink/65 px-1 py-1 text-center text-[10px] font-semibold text-white">Предпросмотр</span>
           </button>
-          <button type="button" aria-label="Удалить фотографию" title="Удалить фотографию" onClick={() => setImage(undefined)} className="absolute -right-2 -top-2 z-10 grid size-8 place-items-center rounded-full border border-line bg-surface text-ink shadow-sm hover:bg-coral hover:text-white focus-visible:outline-2 focus-visible:outline-coral">
+          <button type="button" aria-label="Удалить фотографию" title="Удалить фотографию" onClick={() => { imageRequest.current++; setImage(undefined); setReadingImage(false); }} className="absolute -right-2 -top-2 z-10 grid size-8 place-items-center rounded-full border border-line bg-surface text-ink shadow-sm hover:bg-coral hover:text-white focus-visible:outline-2 focus-visible:outline-coral">
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6m4-6v6M5.5 7l1 13h11l1-13M9 7V4h6v3" /></svg>
           </button>
         </div>}
-      </div>
-      {!pollOpen ? <button type="button" onClick={() => setPollOpen(true)} className="justify-self-start rounded-[var(--radii-pill)] border border-line bg-transparent px-4 py-2 text-sm font-semibold hover:border-coral">＋ Добавить опрос</button> : <div className="grid gap-3 rounded-xl bg-peach/40 p-4">
+      {pollOpen && <div className="grid gap-3 rounded-xl bg-peach/40 p-4">
         <div className="flex items-center justify-between gap-3"><p className="m-0 text-sm font-semibold">Опрос</p><button type="button" aria-label="Удалить опрос" title="Удалить опрос" onClick={() => { setPollQuestion(""); setPollOptions(["", ""]); setPollDuration(24); setPollMultiple(false); setPollSettingsOpen(false); setPollOpen(false); }} className="grid size-9 place-items-center rounded-full border-0 bg-transparent text-muted hover:bg-surface hover:text-coral-deep"><svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6m4-6v6M5.5 7l1 13h11l1-13M9 7V4h6v3" /></svg></button></div>
         <label className="grid gap-1.5 text-sm font-medium">Вопрос
           <input value={pollQuestion} onChange={(event) => setPollQuestion(event.target.value)} maxLength={300} placeholder="Какой вопрос вы хотите задать?" className="rounded-lg border border-line bg-surface px-3 py-2 text-sm font-normal" />
@@ -209,11 +228,11 @@ export function PostComposer({ city, onPublished }: { city?: string; onPublished
       {publishFailed && <p role="alert" className="col-span-full text-coral-deep">{error ?? "Не удалось сохранить публикацию. Текст остался в форме — попробуйте ещё раз."}</p>}
     </section>
       </div>
-    </div>}
     {imagePreviewOpen && image && <div role="dialog" aria-modal="true" aria-label="Предпросмотр фотографии" className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(12_24_48/0.82)] p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setImagePreviewOpen(false); }}>
       <button type="button" aria-label="Закрыть предпросмотр" onClick={() => setImagePreviewOpen(false)} className="absolute right-5 top-5 grid size-11 place-items-center rounded-full border border-white/30 bg-ink/40 text-3xl leading-none text-white hover:bg-ink/70">×</button>
       <div className="relative h-[min(82vh,850px)] w-[min(90vw,1100px)]" onMouseDown={(event) => event.stopPropagation()}><Image src={image} alt="Полноразмерный предпросмотр фотографии" fill unoptimized className="rounded-xl object-contain" sizes="90vw" /></div>
     </div>}
+    </dialog>}
     </>
   );
 }
