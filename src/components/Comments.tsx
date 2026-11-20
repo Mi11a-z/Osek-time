@@ -44,7 +44,7 @@ export function Comments({ comments, onAdd, onDelete, variant, error }: Comments
   const [isAnonymous, setIsAnonymous] = useState(false);
   const { profile, ready } = useLocalData();
   const moderation = useModeration();
-  const isAdmin = moderation.ready && moderation.role === "admin";
+  const canSeeAnonymousAuthor = moderation.ready && (moderation.role === "admin" || moderation.role === "moderator");
   const canComment = ready && /^[a-z0-9_.]{3,20}$/i.test(profile.username);
   const isDetail = variant === "detail";
   const classes = styles[variant];
@@ -99,7 +99,7 @@ export function Comments({ comments, onAdd, onDelete, variant, error }: Comments
           <span className={`${classes.author} inline-block align-top`}>
             {comment.isAnonymous ? <>
               Аноним
-              {isAdmin && <span className="block text-muted [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-medium)]">@{comment.username}</span>}
+              {canSeeAnonymousAuthor && <span className="block text-muted [font-size:var(--font-sizes-meta)] [font-weight:var(--font-weights-medium)]">@{comment.username}</span>}
             </> : <>@{comment.username}:</>}
           </span>
           <span className={classes.text}>{comment.text}</span>

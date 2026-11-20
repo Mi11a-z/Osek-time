@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useLocalData } from "../../data/local-store";
-import { dismissReport, removePost, restorePost, blockUser, unblockUser, accountReports, canViewAccountReports, reportReasons, useModeration } from "../../moderation";
+import { reportAccountUsername, dismissReport, removePost, restorePost, blockUser, unblockUser, accountReports, canViewAccountReports, reportReasons, useModeration } from "../../moderation";
 import { BackHeader } from "../ui/BackHeader";
 
 const statuses = { new: "Новая", resolved: "Обработана", dismissed: "Отклонена" };
@@ -92,6 +92,9 @@ export function AccountReports({ username }: { username: string }) {
                 </div>
                 <p className="mt-2 text-sm text-muted">От @{report.reporter} · {new Date(report.createdAt).toLocaleString("ru-RU")}</p>
                 <p className="mt-3 break-words">Пост №{report.postId} · {report.postText || "Без текста"}</p>
+                {canViewAccountReports(moderation.role) && !report.authorId && <p className="mt-2 text-sm text-muted">
+                  {reportAccountUsername(report, local) ? `Автор анонимного поста: @${reportAccountUsername(report, local)} · видно администрации и модераторам` : "Данные аккаунта анонимного автора не сохранены"}
+                </p>}
                 {report.details && <p className="mt-2 break-words text-sm">Комментарий к жалобе: {report.details}</p>}
                 {report.resolution && <p className="mt-2 text-sm">Решение: {report.resolution}</p>}
                 {moderation.role === "admin" && <div className="mt-4 flex flex-wrap gap-2 [&_button]:cursor-pointer [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold">

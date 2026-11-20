@@ -328,7 +328,7 @@ test('comment anonymity choices persist while real usernames remain available an
   assert.deepEqual(byId(reloaded, ownPost.id).comments, savedComments);
   assert.equal(byId(reloaded, ownPost.id).author, 'Аноним');
   assert.equal(byId(reloaded, ownPost.id).authorUsername, 'updated_handle');
-  assert.equal(byId(reloaded, 1).authorUsername, undefined, 'Unknown seed authors must not be guessed');
+  assert.equal(byId(reloaded, 1).authorUsername, 'demo_coffee_author', 'Seed ownership is explicitly assigned in demo data');
   assert.deepEqual(byId(reloaded, 1).comments, [], 'Enabling anonymity must not resurrect archived anonymous comments');
 });
 
@@ -348,7 +348,7 @@ test('version 2 comments migrate as named and preserve known post usernames and 
   const migrated = createLocalStore(() => storage);
   assert.deepEqual(byId(migrated, 1).comments, [{ ...oldComment, isAnonymous: false }]);
   assert.deepEqual(byId(migrated, 1).legacyAnonymousComments, archive);
-  assert.equal(byId(migrated, 1).authorUsername, undefined);
+  assert.equal(byId(migrated, 1).authorUsername, 'demo_coffee_author');
   assert.equal(byId(migrated, 2).authorUsername, 'aidana_account');
   assert.ok(migrated.getSnapshot().posts.filter(post => post.isOwn).every(post => post.authorUsername === data.profile.username));
   assert.equal(storage.getItem(LOCAL_STORAGE_KEY), raw);

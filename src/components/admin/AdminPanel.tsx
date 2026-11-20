@@ -11,6 +11,8 @@ import {
   dismissReport,
   removePost,
   reportReasons,
+  reportAccountUsername,
+  adminPostUsername,
   restorePost,
   setRole,
   unblockUser,
@@ -346,6 +348,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <strong>{post?.named ? post.author : removedEvent?.targetLabel ?? "Анонимный автор"}</strong>
+                              {post?.named === false && adminPostUsername(post, localData) && <span className="ml-2 text-sm text-muted">@{adminPostUsername(post, localData)} · анонимно</span>}
                               {post && <span className="ml-2 text-sm text-muted">{post.city} · публикация №{id}</span>}
                               {!post && <span className="ml-2 text-sm text-muted">Публикация №{id}</span>}
                             </div>
@@ -451,7 +454,7 @@ const historyLabels: Record<ModerationEvent["action"], string> = {
 function HistoryCard({ event, post }: { event: ModerationEvent; post?: LocalPost | Post }) {
   const local = useLocalData();
   const reason = event.reason && reportReasons.find((entry) => entry.id === event.reason);
-  const authorLabel = event.targetLabel || post?.author;
+  const authorLabel = post?.named === false && adminPostUsername(post, local) ? `@${adminPostUsername(post, local)} (анонимно)` : event.targetLabel || post?.author;
   const postText = event.postText || post?.text || post?.question;
   const linkedPost = event.targetId
     ? local.posts.find((entry) => entry.named && (entry.authorUsername?.toLowerCase() === event.targetId?.toLowerCase() || entry.author.toLowerCase() === event.targetId?.toLowerCase()))
@@ -508,6 +511,9 @@ function ReportCard({
   postRemoved: boolean;
   authorBlocked: boolean;
 }) {
+  const local = useLocalData();
+  const { role } = useModeration();
+  const account = role === "admin" ? reportAccountUsername(report, local) : null;
   const reason = reportReasons.find((r) => r.id === report.reason);
   const isNew = report.status === "new";
 
@@ -532,6 +538,8 @@ function ReportCard({
       <blockquote className={`${adminPostPreviewClass} mx-0 mb-0 border-0`}>
         <span className="block [font-weight:var(--font-weights-bold)]">
           {report.authorId ? report.postAuthor : "Анонимный автор"}
+          {account && <span className="ml-2 text-sm font-normal text-muted">@{account.replace(/^@/, "")} · видно администрации и модераторам</span>}
+          {!report.authorId && !account && <span className="ml-2 text-sm font-normal text-muted">Данные аккаунта не сохранены</span>}
           {authorBlocked && <span className="ml-2 text-coral-deep [font-size:var(--font-sizes-meta)]">· заблокирован</span>}
           {postRemoved && <span className="ml-2 text-coral-deep [font-size:var(--font-sizes-meta)]">· пост удалён</span>}
         </span>

@@ -17,7 +17,7 @@ export function PostAuthorLabel({ author, named, username, href, className }: Po
   return (
     <span className="flex min-w-0 flex-col">
       {href && named ? <Link href={href} onClick={(event) => event.stopPropagation()} className={`${className} text-inherit no-underline hover:text-coral-deep`}>{named ? (username ? `@${username}` : author) : "Аноним"}</Link> : <span className={className}>{named ? (username ? `@${username}` : author) : "Аноним"}</span>}
-      {!named && username && ready && role === "admin" && (
+      {!named && username && ready && (role === "admin" || role === "moderator") && (
         <span className="text-muted font-normal [font-size:var(--font-sizes-meta)] leading-snug">@{username}</span>
       )}
     </span>

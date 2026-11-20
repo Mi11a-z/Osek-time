@@ -3,6 +3,7 @@ export type Post = {
   id: number;
   named: boolean;
   author: string;
+  authorUsername?: string;
   avatar?: string;
   city: string;
   minutes: number;
@@ -17,6 +18,7 @@ export type Post = {
 export const posts: Post[] = [
   {
     id: 1,
+    authorUsername: "demo_coffee_author",
     named: false,
     author: "Аноним",
     city: "Алматы",
@@ -41,6 +43,7 @@ export const posts: Post[] = [
   },
   {
     id: 3,
+    authorUsername: "demo_astana_author",
     named: false,
     author: "Аноним",
     city: "Астана",

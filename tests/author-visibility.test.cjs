@@ -59,7 +59,7 @@ function comments({ ready = true, role = 'user', isAnonymous = true, variant = '
   }));
 }
 
-for (const state of [{ ready: true, role: 'user' }, { ready: false, role: 'admin' }]) {
+for (const state of [{ ready: true, role: 'user' }, { ready: false, role: 'admin' }, { ready: false, role: 'moderator' }]) {
   test(`anonymous post has no real username anywhere in markup for ${state.role}, ready=${state.ready}`, () => {
     const html = postLabel(state);
     assert.match(html, /Аноним/);
@@ -102,3 +102,14 @@ test('new comments default to a named author and expose an accessible anonymity 
   assert.match(html, /role="switch" aria-label="Комментировать анонимно" aria-checked="false"/);
   assert.match(html, /Комментарий от <strong>@viewer_12<\/strong>/);
 });
+
+for (const role of ['admin', 'moderator']) {
+  test(`${role} sees the anonymous post author`, () => {
+    assert.ok(postLabel({ role }).includes(realUsername));
+  });
+  for (const variant of ['feed', 'detail']) {
+    test(`${role} sees the anonymous ${variant} comment author`, () => {
+      assert.ok(comments({ role, variant }).includes(realUsername));
+    });
+  }
+}

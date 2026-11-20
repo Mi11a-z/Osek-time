@@ -1,5 +1,6 @@
 "use client";
 
+import { posts as samplePosts, type Post } from "./data/posts";
 import { useSyncExternalStore } from "react";
 import { getLocalSnapshot, type LocalSnapshot, type LocalPost } from "./data/local-store";
 
@@ -163,6 +164,19 @@ export function setRole(role: Role) {
 function postAccount(post: LocalPost, localUsername: string) {
   if (post.isOwn) return localUsername.toLowerCase();
   return (post.authorUsername ?? (post.named ? post.author : "")).toLowerCase();
+}
+
+export function adminPostUsername(post: Post | LocalPost | undefined, local: LocalSnapshot): string | null {
+  if (!post) return null;
+  if ("isOwn" in post && post.isOwn) return local.profile.username;
+  return post.authorUsername || samplePosts.find((sample) => sample.id === post.id)?.authorUsername || (post.named ? post.author : null);
+}
+
+// Demo ownership is explicitly assigned in the sample data.
+export function reportAccountUsername(report: Report, local: LocalSnapshot): string | null {
+  const post = local.posts.find((entry) => entry.id === report.postId);
+  if (report.localAccount || post?.isOwn) return local.profile.username;
+  return report.accountUsername || adminPostUsername(post ?? samplePosts.find((sample) => sample.id === report.postId), local) || report.authorId || null;
 }
 
 export function accountReports(reports: Report[], username: string, local: LocalSnapshot) {

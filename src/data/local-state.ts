@@ -131,7 +131,7 @@ function resolveOwnAuthors(data: LocalData): LocalData {
   return { ...data, posts: data.posts.map((post) => post.isOwn ? {
     ...post, author: post.named ? data.profile.username : "Аноним", avatar: post.named ? data.avatar ?? undefined : undefined,
     authorUsername: username(data.profile.username) ? data.profile.username : undefined,
-  } : post) };
+  } : { ...post, authorUsername: post.authorUsername ?? feedPosts.find((sample) => sample.id === post.id)?.authorUsername }) };
 }
 
 function readCanonical(raw: string): LocalData {
