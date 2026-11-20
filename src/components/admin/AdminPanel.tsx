@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { BackHeader } from "../ui/BackHeader";
 import { useLocalData, type LocalPost } from "../../data/local-store";
 import { posts as samplePosts, type Post } from "../../data/posts";
@@ -52,6 +52,11 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   const localData = useLocalData();
   const [now, setNow] = useState<number | null>(null);
 
+  // Состояния для фильтров и поиска в разделе "История действий" (или везде, где нужно)
+  const [historyCityFilter, setHistoryCityFilter] = useState("Все города");
+  const [historySortOrder, setHistorySortOrder] = useState<"desc" | "asc">("desc");
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+
   useEffect(() => {
     const timer = window.setTimeout(() => setNow(Date.now()), 0);
     return () => window.clearTimeout(timer);
@@ -74,6 +79,12 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   const doneReports = reports.filter((r) => r.status !== "new");
   const visible = section === "new" ? newReports : doneReports;
   const recordedReports = new Set(history.filter((event) => event.action === "report_received").map((event) => event.reportId));
+  
+  const allPosts = [
+    ...samplePosts.filter((post) => !localData.posts.some((localPost) => localPost.id === post.id)),
+    ...localData.posts,
+  ];
+
   const historyItems: ModerationEvent[] = [
     ...history,
     ...reports.filter((report) => !recordedReports.has(report.id)).map((report): ModerationEvent => ({
@@ -83,10 +94,35 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
       description: `Ранее поступила жалоба от @${report.reporter}${report.resolution ? ` · ${report.resolution}` : ""}`,
     })),
   ].sort((a, b) => b.createdAt - a.createdAt);
-  const allPosts = [
-    ...samplePosts.filter((post) => !localData.posts.some((localPost) => localPost.id === post.id)),
-    ...localData.posts,
-  ];
+
+  // Фильтрация и сортировка для истории действий
+  const filteredHistoryItems = useMemo(() => {
+    const query = historySearchQuery.toLowerCase().trim();
+    const cleanQuery = query.replace(/^@/, "");
+
+    return historyItems.filter((event) => {
+      const post = allPosts.find((p) => p.id === event.postId);
+      const postCity = post?.city || "Все города";
+
+      const matchesCity = historyCityFilter === "Все города" || postCity === historyCityFilter;
+
+      const textToCheck = [
+        event.postText,
+        event.description,
+        event.targetLabel,
+        event.targetId,
+        post?.text,
+        post?.author,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      const matchesSearch = !cleanQuery || textToCheck.includes(cleanQuery);
+
+      return matchesCity && matchesSearch;
+    }).sort((a, b) => {
+      return historySortOrder === "desc" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt;
+    });
+  }, [historyItems, historyCityFilter, historySearchQuery, historySortOrder, allPosts]);
+
   const posts = allPosts.filter((post) => !removed.includes(post.id));
   const periods = [
     { id: "day", label: "Сегодня", since: now === null ? Infinity : new Date(new Date(now).setHours(0, 0, 0, 0)).getTime() },
@@ -214,17 +250,66 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
           </ul>
         )
       ) : section === "history" ? (
-        historyItems.length === 0 ? <p className="py-[50px] text-center text-muted">История появится после жалоб и действий модератора.</p> : (
-          <ul className="m-0 grid list-none gap-3 p-0">
-            {historyItems.map((event) => (
-              <HistoryCard
-                key={event.id}
-                event={event}
-                post={allPosts.find((post) => post.id === event.postId)}
+        <>
+          {/* Панель фильтров, сортировки и поиска для истории действий */}
+          <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radii-panel)] border border-line bg-surface p-4">
+            {/* Выбор города */}
+            <select
+              value={historyCityFilter}
+              onChange={(e) => setHistoryCityFilter(e.target.value)}
+              className="rounded-xl border border-line bg-background px-3 py-2 text-sm font-medium outline-none focus:border-coral"
+            >
+              <option value="Все города">Все города</option>
+              <option value="Алматы">Алматы</option>
+              <option value="Астана">Астана</option>
+              <option value="Шымкент">Шымкент</option>
+            </select>
+
+            {/* Сортировка по дате */}
+            <select
+              value={historySortOrder}
+              onChange={(e) => setHistorySortOrder(e.target.value as "desc" | "asc")}
+              className="rounded-xl border border-line bg-background px-3 py-2 text-sm font-medium outline-none focus:border-coral"
+            >
+              <option value="desc">Сначала новые</option>
+              <option value="asc">Сначала старые</option>
+            </select>
+
+            {/* Поиск по словам поста или пользователя */}
+            <div className="flex flex-1 min-w-[200px] items-center rounded-xl border border-line bg-background px-3 py-2">
+              <input
+                type="text"
+                placeholder="Поиск по словам поста или пользователя..."
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+                className="w-full border-0 bg-transparent text-sm outline-none placeholder:text-muted"
               />
-            ))}
-          </ul>
-        )
+              {historySearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setHistorySearchQuery("")}
+                  className="text-xs text-muted hover:text-ink ml-2"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredHistoryItems.length === 0 ? (
+            <p className="py-[50px] text-center text-muted">Ничего не найдено по вашему запросу.</p>
+          ) : (
+            <ul className="m-0 grid list-none gap-3 p-0">
+              {filteredHistoryItems.map((event) => (
+                <HistoryCard
+                  key={event.id}
+                  event={event}
+                  post={allPosts.find((post) => post.id === event.postId)}
+                />
+              ))}
+            </ul>
+          )}
+        </>
       ) : section === "new" || section === "done" ? visible.length === 0 ? (
         <p className="py-[50px] text-center text-muted">
           {section === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет."}
@@ -289,6 +374,7 @@ function HistoryCard({ event, post }: { event: ModerationEvent; post?: LocalPost
     <li className={adminCardClass}>
       <div className="flex flex-wrap items-center gap-2">
         <strong>{historyLabels[event.action]}</strong>
+        {post?.city && <span className="rounded-md bg-peach px-2 py-0.5 text-xs text-coral-deep font-semibold">{post.city}</span>}
         <span className="ml-auto text-sm text-muted">{formatDate(event.createdAt)}</span>
       </div>
       {authorLabel && <p className="mb-0 mt-2 text-sm">Автор поста: {targetHref ? <Link href={targetHref} className="font-bold text-coral-deep underline-offset-2 hover:underline">{authorLabel}</Link> : <strong>{authorLabel}</strong>}{event.targetId ? ` · @${event.targetId}` : post?.named === false ? " · анонимно" : ""}</p>}
