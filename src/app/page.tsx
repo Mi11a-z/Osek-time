@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, Suspense } from "react";
@@ -88,15 +87,32 @@ function FeedContent({ section }: { section: FeedSection }) {
 
   // Фильтрация публикаций
   let filteredPosts = posts.filter((post) => {
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
+    const cleanQuery = query.replace(/^@/, ""); // убираем @ в начале, если пользователь ввёл "@aba_12"
 
     const matchesCity =
       activeCity === "Все города" ||
       post.city === activeCity;
 
+    // Собираем возможные имена и юзернеймы автора (только если пост не анонимный)
+    const authorFields: string[] = [];
+    if (post.named) {
+      if (post.author) authorFields.push(post.author.toLowerCase());
+      if ("username" in post && typeof post.username === "string") {
+        authorFields.push(post.username.toLowerCase());
+      }
+      if (post.isOwn) {
+        authorFields.push(profile.name.toLowerCase(), profile.username.toLowerCase());
+      }
+    }
+
+    const matchesAuthor =
+      cleanQuery.length > 0 &&
+      authorFields.some((field) => field.replace(/^@/, "").includes(cleanQuery));
+
     const matchesSearch = activeTag
       ? containsHashtag(post.text, activeTag) || containsHashtag(post.question ?? "", activeTag)
-      : post.text.toLowerCase().includes(query);
+      : !query || post.text.toLowerCase().includes(query) || matchesAuthor;
 
     return (
       ready &&

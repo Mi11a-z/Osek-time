@@ -65,8 +65,8 @@ export function FeedToolbar({
           type="search"
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Поиск по постам, городам, темам…"
-          aria-label="Поиск по постам, городам и темам"
+          placeholder="Поиск по постам, авторам, юзернеймам…"
+          aria-label="Поиск по постам, авторам и юзернеймам"
         />
       </label>
     </section>

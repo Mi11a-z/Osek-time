@@ -1,4 +1,4 @@
-export type ProfileTab = "posts" | "likes" | "comments" | "saved";
+export type ProfileTab = "posts" | "likes" | "comments" | "saved" | "complaints";
 
 export type ProfileUser = {
   name: string;
@@ -34,4 +34,5 @@ export const profileTabs: { id: ProfileTab; label: string }[] = [
   { id: "likes", label: "Лайки" },
   { id: "comments", label: "Комментарии" },
   { id: "saved", label: "Сохранённое" },
+  { id: "complaints", label: "Жалобы" },
 ];
