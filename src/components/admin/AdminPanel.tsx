@@ -19,12 +19,11 @@ import {
   type ModerationEvent,
 } from "../../moderation";
 
-export type AdminSection = "overview" | "new" | "done" | "blocked" | "removed" | "history";
+export type AdminSection = "overview" | "reports" | "new" | "done" | "blocked" | "removed" | "history";
 
 const navigation: { id: AdminSection; label: string; href: string }[] = [
   { id: "overview", label: "Обзор", href: "/admin" },
-  { id: "new", label: "Новые жалобы", href: "/admin/reports/new" },
-  { id: "done", label: "Обработанные", href: "/admin/reports/done" },
+  { id: "reports", label: "Жалобы", href: "/admin/reports" },
   { id: "removed", label: "Удалённые посты", href: "/admin/posts/removed" },
   { id: "blocked", label: "Заблокированные", href: "/admin/users/blocked" },
   { id: "history", label: "История действий", href: "/admin/history" },
@@ -32,6 +31,7 @@ const navigation: { id: AdminSection; label: string; href: string }[] = [
 
 const sectionTitles: Record<AdminSection, string> = {
   overview: "Админ-панель",
+  reports: "Жалобы",
   new: "Новые жалобы",
   done: "Обработанные жалобы",
   removed: "Удалённые посты",
@@ -57,6 +57,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   const [actionFilter, setActionFilter] = useState<"all" | ModerationEvent["action"]>("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportFilter, setReportFilter] = useState<"all" | "new" | "done">("all");
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNow(Date.now()), 0);
@@ -70,7 +71,8 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
 
   const newReports = reports.filter((r) => r.status === "new");
   const doneReports = reports.filter((r) => r.status !== "new");
-  const rawVisibleReports = section === "new" ? newReports : doneReports;
+  const selectedStatus = section === "new" ? "new" : section === "done" ? "done" : reportFilter;
+  const rawVisibleReports = selectedStatus === "new" ? newReports : selectedStatus === "done" ? doneReports : reports;
 
   const recordedReports = new Set(history.filter((event) => event.action === "report_received").map((event) => event.reportId));
   const historyItems: ModerationEvent[] = useMemo(() => [
@@ -181,7 +183,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   }, {});
   const popularCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-  const showFilterBar = section === "history" || section === "new" || section === "done";
+  const showFilterBar = section === "history" || section === "reports" || section === "new" || section === "done";
 
   return (
     <main className="mx-auto w-full max-w-[1380px] px-5 py-6 max-[480px]:px-3">
@@ -202,12 +204,18 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
               aria-current={section === item.id ? "page" : undefined}
               className={`rounded-[var(--radii-pill)] border px-4 py-3 font-semibold no-underline transition-colors hover:border-coral ${section === item.id ? "border-coral bg-coral text-white" : "border-line bg-surface text-inherit"}`}
             >
-              {item.label}{item.id === "new" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
+              {item.label}{item.id === "reports" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
             </Link>
           ))}
         </nav>
 
         <div className="min-w-0">
+          {section === "reports" && <div role="group" aria-label="Статус жалоб" className="mb-5 flex flex-wrap gap-2">
+            {([["all", "Все", reports.length], ["new", "Новые", newReports.length], ["done", "Обработанные", doneReports.length]] as const).map(([value, label, count]) => (
+              <button key={value} type="button" aria-pressed={reportFilter === value} onClick={() => setReportFilter(value)} className={`${pillClass} ${reportFilter === value ? "border-coral bg-coral text-white" : "border-line bg-transparent hover:border-coral"}`}>{label} · {count}</button>
+            ))}
+          </div>}
+
           {showFilterBar && (
             <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radii-panel)] border border-line bg-surface p-4">
               <select
@@ -383,11 +391,11 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
                 ))}
               </ul>
             )
-          ) : section === "new" || section === "done" ? (
+          ) : section === "reports" || section === "new" || section === "done" ? (
             filteredReports.length === 0 ? (
               <p className="py-[50px] text-center text-muted">
                 {rawVisibleReports.length === 0
-                  ? (section === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет.")
+                  ? (selectedStatus === "all" ? "Жалоб пока нет." : selectedStatus === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет.")
                   : "Ничего не найдено по вашему запросу."}
               </p>
             ) : (
