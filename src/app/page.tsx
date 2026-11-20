@@ -10,6 +10,7 @@ import { FeedHeader, type NavTab } from "../components/feed/FeedHeader";
 import { matchesCitySearch } from "../data/city-search";
 import { containsHashtag, fullHashtag } from "../hashtag";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
+import { FeedTabs, type FeedMode } from "../components/feed/FeedTabs";
 import { PostComposer } from "../components/feed/PostComposer";
 import { PostCard } from "../components/posts/PostCard";
 import { useLocalData } from "../data/local-store";
@@ -34,6 +35,7 @@ function FeedContent({ section }: { section: FeedSection }) {
       ? "Сохранённое"
       : "Лента";
   const [freeSearch, setFreeSearch] = useState("");
+  const [feedMode, setFeedMode] = useState<FeedMode>("recommended");
 
   const { posts, profile, ready: localReady, error } = useLocalData();
   const { ready: moderationReady, removed, blocked } = useModeration();
@@ -125,6 +127,18 @@ function FeedContent({ section }: { section: FeedSection }) {
     );
   });
 
+  // Подписки (пока заглушка: список подписок должен прийти из данных)
+  const followingUsernames: string[] = []; // TODO для JS-разработчика
+
+  if (section === "feed" && feedMode === "following") {
+    filteredPosts = filteredPosts.filter(
+      (post) =>
+        post.named &&
+        !post.isOwn &&
+        followingUsernames.includes((post.authorUsername ?? post.author).toLowerCase())
+    );
+  }
+
   // Сохранённое
   if (section === "saved") {
     filteredPosts = filteredPosts.filter(
@@ -160,6 +174,13 @@ function FeedContent({ section }: { section: FeedSection }) {
         }
         onPublished={handlePublished}
       />
+
+      {/* Переключатель: Рекомендации / Подписки (только на главной) */}
+      {section === "feed" && (
+        <div className="mx-auto mt-4 [max-width:var(--layout-posts-max-width)]">
+          <FeedTabs active={feedMode} onChange={setFeedMode} />
+        </div>
+      )}
 
       {error && (
         <p
@@ -206,7 +227,9 @@ function FeedContent({ section }: { section: FeedSection }) {
           <p className="py-[30px] text-center text-muted">
             {activeNav === "Сохранённое"
               ? "Пока ничего не сохранено."
-              : "Ничего не найдено."}
+              : section === "feed" && feedMode === "following"
+                ? "Вы пока ни на кого не подписаны."
+                : "Ничего не найдено."}
           </p>
         )}
 
