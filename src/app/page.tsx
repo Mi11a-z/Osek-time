@@ -15,6 +15,7 @@ import { PostComposer } from "../components/feed/PostComposer";
 import { PostCard } from "../components/posts/PostCard";
 import { useLocalData } from "../data/local-store";
 import { useModeration } from "../moderation";
+import { useFollowGraph } from "../data/follows";
 
 const shellClass = `w-full mx-auto [max-width:var(--layout-feed-max-width)] [padding:var(--layout-feed-padding)]
   min-[1600px]:[padding-top:var(--layout-feed-wide-top-from1600)]
@@ -38,6 +39,7 @@ function FeedContent({ section }: { section: FeedSection }) {
   const [feedMode, setFeedMode] = useState<FeedMode>("recommended");
 
   const { posts, profile, ready: localReady, error } = useLocalData();
+  const followGraph = useFollowGraph();
   const { ready: moderationReady, removed, blocked } = useModeration();
 
   const ready = localReady && moderationReady;
@@ -127,15 +129,14 @@ function FeedContent({ section }: { section: FeedSection }) {
     );
   });
 
-  // Подписки (пока заглушка: список подписок должен прийти из данных)
-  const followingUsernames: string[] = []; // TODO для JS-разработчика
+  const followingUsernames = followGraph[profile.username.toLowerCase()] ?? [];
 
   if (section === "feed" && feedMode === "following") {
     filteredPosts = filteredPosts.filter(
       (post) =>
         post.named &&
         !post.isOwn &&
-        followingUsernames.includes((post.authorUsername ?? post.author).toLowerCase())
+        followingUsernames.includes((post.authorUsername ?? "").toLowerCase())
     );
   }
 

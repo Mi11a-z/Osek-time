@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { BackHeader } from "../ui/BackHeader";
 import { useLocalData, type LocalPost } from "../../data/local-store";
 import { posts as samplePosts, type Post } from "../../data/posts";
@@ -19,12 +19,11 @@ import {
   type ModerationEvent,
 } from "../../moderation";
 
-export type AdminSection = "overview" | "new" | "done" | "blocked" | "removed" | "history";
+export type AdminSection = "overview" | "reports" | "new" | "done" | "blocked" | "removed" | "history";
 
 const navigation: { id: AdminSection; label: string; href: string }[] = [
   { id: "overview", label: "Обзор", href: "/admin" },
-  { id: "new", label: "Новые жалобы", href: "/admin/reports/new" },
-  { id: "done", label: "Обработанные", href: "/admin/reports/done" },
+  { id: "reports", label: "Жалобы", href: "/admin/reports" },
   { id: "removed", label: "Удалённые посты", href: "/admin/posts/removed" },
   { id: "blocked", label: "Заблокированные", href: "/admin/users/blocked" },
   { id: "history", label: "История действий", href: "/admin/history" },
@@ -32,6 +31,7 @@ const navigation: { id: AdminSection; label: string; href: string }[] = [
 
 const sectionTitles: Record<AdminSection, string> = {
   overview: "Админ-панель",
+  reports: "Жалобы",
   new: "Новые жалобы",
   done: "Обработанные жалобы",
   removed: "Удалённые посты",
@@ -56,6 +56,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   const [historyCityFilter, setHistoryCityFilter] = useState("Все города");
   const [historySortOrder, setHistorySortOrder] = useState<"desc" | "asc">("desc");
   const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [reportFilter, setReportFilter] = useState<"all" | "new" | "done">("all");
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNow(Date.now()), 0);
@@ -77,7 +78,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
 
   const newReports = reports.filter((r) => r.status === "new");
   const doneReports = reports.filter((r) => r.status !== "new");
-  const visible = section === "new" ? newReports : doneReports;
+  const visible = section === "new" ? newReports : section === "done" ? doneReports : reports;
   const recordedReports = new Set(history.filter((event) => event.action === "report_received").map((event) => event.reportId));
   
   const allPosts = [
@@ -96,7 +97,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
   ].sort((a, b) => b.createdAt - a.createdAt);
 
   // Фильтрация и сортировка для истории действий
-  const filteredHistoryItems = useMemo(() => {
+  const filteredHistoryItems = (() => {
     const query = historySearchQuery.toLowerCase().trim();
     const cleanQuery = query.replace(/^@/, "");
 
@@ -121,7 +122,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
     }).sort((a, b) => {
       return historySortOrder === "desc" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt;
     });
-  }, [historyItems, historyCityFilter, historySearchQuery, historySortOrder, allPosts]);
+  })();
 
   const posts = allPosts.filter((post) => !removed.includes(post.id));
   const periods = [
@@ -155,7 +156,7 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
             aria-current={section === item.id ? "page" : undefined}
             className={`rounded-[var(--radii-pill)] border px-4 py-3 font-semibold no-underline transition-colors hover:border-coral ${section === item.id ? "border-coral bg-coral text-white" : "border-line bg-surface text-inherit"}`}
           >
-            {item.label}{item.id === "new" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
+            {item.label}{item.id === "reports" && newReports.length > 0 ? ` · ${newReports.length}` : ""}
           </Link>
         ))}
       </nav>
@@ -310,13 +311,23 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
             </ul>
           )}
         </>
-      ) : section === "new" || section === "done" ? visible.length === 0 ? (
+      ) : section === "new" || section === "done" || section === "reports" ? <>
+        {section === "reports" && <div role="tablist" aria-label="Фильтр жалоб" className="mb-5 flex flex-wrap gap-2">
+          {([ ["all", "Все"], ["new", "Новые"], ["done", "Обработанные"] ] as const).map(([filter, label]) => (
+            <button key={filter} type="button" role="tab" aria-selected={reportFilter === filter} onClick={() => setReportFilter(filter)} className={`${pillClass} ${reportFilter === filter ? "border-coral bg-coral text-white" : "border-line bg-transparent hover:border-coral"}`}>
+              {label}{filter === "new" ? ` · ${newReports.length}` : filter === "done" ? ` · ${doneReports.length}` : ` · ${reports.length}`}
+            </button>
+          ))}
+        </div>}
+        {(() => {
+          const reportList = section === "reports" ? reports.filter((report) => reportFilter === "all" || (reportFilter === "new" ? report.status === "new" : report.status !== "new")) : visible;
+          return reportList.length === 0 ? (
         <p className="py-[50px] text-center text-muted">
-          {section === "new" ? "Новых жалоб нет." : "Обработанных жалоб пока нет."}
+          {section === "reports" && reportFilter === "all" ? "Жалоб пока нет." : (section === "new" || reportFilter === "new") ? "Новых жалоб нет." : "Обработанных жалоб пока нет."}
         </p>
       ) : (
         <ul className="m-0 grid list-none gap-4 p-0">
-          {visible.map((report) => (
+          {reportList.map((report) => (
             <ReportCard
               key={report.id}
               report={report}
@@ -326,7 +337,9 @@ export function AdminPanel({ section = "overview" }: { section?: AdminSection })
             />
           ))}
         </ul>
-      ) : null}
+      );
+        })()}
+      </> : null}
       </div>
       </div>
     </main>
