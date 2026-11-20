@@ -7,6 +7,7 @@ import {
 } from "next/navigation";
 
 import { FeedHeader, type NavTab } from "../components/feed/FeedHeader";
+import { matchesCitySearch } from "../data/city-search";
 import { containsHashtag, fullHashtag } from "../hashtag";
 import { FeedToolbar } from "../components/feed/FeedToolbar";
 import { PostComposer } from "../components/feed/PostComposer";
@@ -111,8 +112,8 @@ function FeedContent({ section }: { section: FeedSection }) {
       authorFields.some((field) => field.replace(/^@/, "").includes(cleanQuery));
 
     const matchesSearch = activeTag
-      ? containsHashtag(post.text, activeTag) || containsHashtag(post.question ?? "", activeTag)
-      : !query || post.text.toLowerCase().includes(query) || matchesAuthor;
+      ? matchesCitySearch(post.city, activeTag, true) || containsHashtag(post.text, activeTag) || containsHashtag(post.question ?? "", activeTag)
+      : !query || post.text.toLowerCase().includes(query) || matchesAuthor || (!query.startsWith("@") && matchesCitySearch(post.city, query));
 
     return (
       ready &&
@@ -173,7 +174,7 @@ function FeedContent({ section }: { section: FeedSection }) {
       {searchQuery.startsWith("#") && (
         <div className="mx-auto mt-4 flex items-center justify-between [max-width:var(--layout-posts-max-width)] rounded-xl bg-peach/50 px-4 py-2 text-sm text-coral-deep">
           <span>
-            Фильтр по хэштегу:{" "}
+            Хэштег или город:{" "}
             <b>{searchQuery}</b>
           </span>
 

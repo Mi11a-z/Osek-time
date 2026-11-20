@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchSuggestions } from "./SearchSuggestions";
 import { Icon } from "../ui/Icon";
 
 const cities = ["Все города", "Алматы", "Астана", "Шымкент"];
@@ -58,17 +59,7 @@ export function FeedToolbar({
           </button>
         ))}
       </div>
-      <label className={searchClass}>
-        <Icon name="search" className="size-[23px]" />
-        <input
-          className="w-full min-w-0 p-0 border-0 bg-transparent text-ink [font-size:var(--font-sizes-body)] placeholder:text-muted placeholder:opacity-100 max-[1240px]:[font-size:var(--font-sizes-meta)] max-[480px]:[font-size:var(--font-sizes-small)]"
-          type="search"
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Поиск по постам, авторам, юзернеймам…"
-          aria-label="Поиск по постам, авторам и юзернеймам"
-        />
-      </label>
+      <SearchSuggestions className={searchClass} value={searchQuery} onChange={onSearchChange} />
     </section>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatTime } from "../../data/format-time";
+
 import { CityLink } from "../posts/CityLink";
 
 import { useState } from "react";
@@ -53,7 +55,7 @@ export function PostDetail({ postId }: { postId: number }) {
           )}
           <div>
             <PostAuthorLabel author={post.author} named={post.named} username={post.authorUsername} href={authorHref} className="block [font-weight:var(--font-weights-heavy)] [font-size:var(--font-sizes-title-small)]" />
-            <span className="block text-muted [font-size:var(--font-sizes-meta)]"><CityLink city={post.city} /> · {post.minutes} мин</span>
+            <span className="block text-muted [font-size:var(--font-sizes-meta)]"><CityLink city={post.city} /> · {formatTime(post.minutes)}</span>
           </div>
           <PostMenu variant="header" onReport={() => setReporting(true)} onDelete={post.isOwn ? () => deleteLocalPost(post.id) : role === "admin" ? () => removePost(post.id, { authorId, author: post.author, postText: post.text }) : undefined} deleteLabel={post.isOwn ? "Удалить публикацию" : "Удалить пост (админ)"} onBlockAuthor={role === "admin" && authorId ? () => blockUser(authorId, post.author) : undefined} />
         </header>

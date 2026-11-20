@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useLocalData } from "../../data/local-store";
-import { accountReports, canViewAccountReports, reportReasons, useModeration } from "../../moderation";
+import { dismissReport, removePost, restorePost, blockUser, unblockUser, accountReports, canViewAccountReports, reportReasons, useModeration } from "../../moderation";
 import { BackHeader } from "../ui/BackHeader";
 
 const statuses = { new: "Новая", resolved: "Обработана", dismissed: "Отклонена" };
@@ -94,6 +94,16 @@ export function AccountReports({ username }: { username: string }) {
                 <p className="mt-3 break-words">Пост №{report.postId} · {report.postText || "Без текста"}</p>
                 {report.details && <p className="mt-2 break-words text-sm">Комментарий к жалобе: {report.details}</p>}
                 {report.resolution && <p className="mt-2 text-sm">Решение: {report.resolution}</p>}
+                {moderation.role === "admin" && <div className="mt-4 flex flex-wrap gap-2 [&_button]:cursor-pointer [&_button]:rounded-full [&_button]:border [&_button]:border-line [&_button]:px-4 [&_button]:py-2 [&_button]:text-sm [&_button]:font-semibold">
+                  <Link href={`/post/${report.postId}`} className="rounded-full border border-line px-4 py-2 text-sm text-inherit hover:border-coral">Открыть пост</Link>
+                  {report.status === "new" && <button type="button" onClick={() => dismissReport(report.id)}>Отклонить жалобу</button>}
+                  {moderation.removed.includes(report.postId)
+                    ? <button type="button" onClick={() => restorePost(report.postId)}>Восстановить пост</button>
+                    : <button type="button" className="text-coral-deep" onClick={() => removePost(report.postId)}>Удалить пост</button>}
+                  {report.authorId && (moderation.blocked.includes(report.authorId)
+                    ? <button type="button" onClick={() => unblockUser(report.authorId!)}>Разблокировать автора</button>
+                    : <button type="button" className="text-coral-deep" onClick={() => blockUser(report.authorId!, report.postAuthor)}>Заблокировать автора</button>)}
+                </div>}
               </li>
             ))}
           </ul>

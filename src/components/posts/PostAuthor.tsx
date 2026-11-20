@@ -1,5 +1,7 @@
 "use client";
 
+import { formatTime } from "../../data/format-time";
+
 import { CityLink } from "../posts/CityLink";
 
 import type { ReactNode } from "react";
@@ -55,7 +57,7 @@ export function PostAuthor({ author, avatar, named, isOwn = false, username, cit
               {city}
             </button>
           ) : <CityLink city={city} />}
-          <span aria-hidden="true"> · </span>{minutes} мин
+          <span aria-hidden="true"> · </span>{formatTime(minutes)}
         </span>
       </div>
       {menu ? (

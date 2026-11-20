@@ -1,5 +1,7 @@
 "use client";
 
+import { formatTime } from "../../data/format-time";
+
 import { renderTextWithHashtags } from "../../hashtag";
 import { CityLink } from "../posts/CityLink";
 
@@ -25,10 +27,7 @@ type ProfilePostCardProps = {
   onDeleteComment: (id: number, index: number, expectedComments: readonly LocalComment[]) => boolean;
 };
 
-function formatTime(minutes: number) {
-  if (minutes < 1) return "только что";
-  return minutes < 60 ? `${minutes} мин` : `${Math.floor(minutes / 60)} ч`;
-}
+
 
 export function ProfilePostCard({
   post,
